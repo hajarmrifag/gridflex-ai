@@ -10,6 +10,7 @@ from src.data import generate_demo_data, load_timeseries, scale_renewables
 from src.flexibility import shift_flexible_demand
 from src.forecasting import forecast_demand
 from src.metrics import calculate_metrics
+from src.optimizer import optimize_battery
 
 st.set_page_config(
     page_title="GridFlex AI",
@@ -49,6 +50,11 @@ def get_data(source: str, days: int) -> pd.DataFrame:
     if source == "Public OPSD sample":
         return load_timeseries().iloc[: days * 24]
     return generate_demo_data(days=days)
+
+
+@st.cache_data
+def get_lp_benchmark(frame: pd.DataFrame, config: BatteryConfig) -> pd.DataFrame:
+    return optimize_battery(frame, config)
 
 
 def chart_layout(title: str, y_title: str = "MW") -> dict:
@@ -113,7 +119,9 @@ st.caption(
     f"{simulated.index.min():%d %b %Y} → {simulated.index.max():%d %b %Y}"
 )
 
-tabs = st.tabs(["System impact", "Dispatch detail", "Forecast lab", "Methodology"])
+tabs = st.tabs(
+    ["System impact", "Dispatch detail", "Forecast lab", "Optimizer benchmark", "Methodology"]
+)
 
 with tabs[0]:
     c1, c2, c3, c4 = st.columns(4)
@@ -213,6 +221,61 @@ with tabs[2]:
         st.info(f"Select a longer analysis horizon to run the forecast benchmark: {exc}")
 
 with tabs[3]:
+    st.markdown("### How close is the heuristic to the theoretical best?")
+    st.write(
+        "The dispatch tabs above use a causal rule: charge on surplus, discharge above a "
+        "fixed peak target. This benchmark instead solves a linear program with perfect "
+        "foresight of the whole horizon, so it can plan ahead in a way no real controller "
+        "can. It is not a claim about achievable operation — it is an upper bound the "
+        "heuristic can be measured against."
+    )
+    st.caption(
+        "Demand flexibility is applied identically before either dispatch method runs, so "
+        "the comparison below isolates what the battery itself contributes, on top of "
+        "flexibility, rather than crediting the battery for flexibility's share of the gain."
+    )
+    run_lp = st.checkbox("Solve the perfect-foresight benchmark", value=True)
+    if run_lp:
+        lp_result = get_lp_benchmark(flexed, config)
+        lp_peak = lp_result.attrs["lp_peak_mw"]
+        baseline_peak = float(baseline_net.clip(lower=0).max())
+        no_battery_peak = float(flexed["net_load_mw"].clip(lower=0).max())
+        heuristic_peak = metrics["optimized_peak_mw"]
+        battery_achievable = no_battery_peak - lp_peak
+
+        o1, o2, o3, o4 = st.columns(4)
+        o1.metric("Baseline peak", f"{baseline_peak:.1f} MW")
+        o2.metric("After flexibility, no battery", f"{no_battery_peak:.1f} MW")
+        o3.metric("Heuristic peak", f"{heuristic_peak:.1f} MW")
+        o4.metric("LP-optimal peak", f"{lp_peak:.1f} MW")
+
+        if battery_achievable < max(0.005 * no_battery_peak, 1e-6):
+            st.info(
+                "The battery's power rating is too small relative to this system's peak "
+                "for storage-driven peak-shaving to move the needle here — both the "
+                "heuristic and the theoretical optimum leave the post-flexibility peak "
+                "almost unchanged. Try the synthetic stress test or a larger battery to "
+                "see the gap widen."
+            )
+        else:
+            captured_pct = 100 * (no_battery_peak - heuristic_peak) / battery_achievable
+            st.metric(
+                "Heuristic captures",
+                f"{captured_pct:.0f}% of the battery's achievable peak reduction",
+            )
+
+        lp_fig = go.Figure()
+        lp_fig.add_trace(go.Scatter(x=simulated.index, y=baseline_net, name="Baseline", line={"color": "#83938d", "width": 1}))
+        lp_fig.add_trace(go.Scatter(x=flexed.index, y=flexed["net_load_mw"], name="After flexibility, no battery", line={"color": "#5a7a6d", "width": 1, "dash": "dot"}))
+        lp_fig.add_trace(go.Scatter(x=simulated.index, y=simulated["optimized_net_load_mw"], name="Heuristic", line={"color": "#65e3a2", "width": 2}))
+        lp_fig.add_trace(go.Scatter(x=lp_result.index, y=lp_result["lp_optimal_net_load_mw"], name="LP-optimal (perfect foresight)", line={"color": "#f4b860", "width": 2, "dash": "dot"}))
+        lp_fig.add_hline(y=0, line_color="#b4c5bd", line_dash="dot")
+        lp_fig.update_layout(**chart_layout("Baseline vs heuristic vs perfect-foresight optimum"))
+        st.plotly_chart(lp_fig, use_container_width=True)
+    else:
+        st.caption("Enable the checkbox to solve the benchmark for the current scenario.")
+
+with tabs[4]:
     st.markdown("### Transparent by design")
     a, b = st.columns(2)
     with a:
@@ -229,7 +292,10 @@ with tabs[3]:
         st.markdown("""
         **What this prototype does not claim**
 
-        - No wholesale-market bidding or perfect foresight.
+        - The dispatch controller is causal: no wholesale-market bidding or
+          foresight. The optimizer benchmark tab *does* use full-horizon
+          foresight, but only to measure an upper bound, never as a claim
+          about what a real controller could execute in operation.
         - No transmission constraints, ancillary services, or degradation cost.
         - OPSD is a European case study, not a model of Morocco's national grid.
         - Results show scenario sensitivity, not an investment recommendation.

@@ -67,6 +67,26 @@ used for fitting. A 24-hour persistence forecast provides a simple baseline.
 Forecasting is presented as an analytical benchmark and is not used to make the
 rule-based dispatch appear more intelligent than it is.
 
+## Optimizer benchmark
+
+The causal heuristic is also compared against a linear program (`src/optimizer.py`,
+solved with SciPy's HiGHS backend) that minimises peak grid import over the full
+analysis horizon at once. This LP sees the entire horizon in advance, which no
+real controller can, so it is reported strictly as an upper bound: "how much
+peak reduction is physically possible from this exact battery, given perfect
+information," not a claim about achievable real-time operation.
+
+Both the heuristic and the LP dispatch the same battery on top of the same
+demand-flexibility result, so the comparison isolates what the battery itself
+contributes rather than crediting the battery for flexibility's share of the
+gain. When the battery's power rating is too small relative to the system's
+scale to move the peak at all (for example a single grid-scale battery against
+Germany's national demand), the app reports that explicitly instead of a
+misleading percentage. On scenarios where the battery is a meaningful share of
+peak demand, the gap between the heuristic and the LP tends to widen as battery
+size grows, because a fixed-threshold rule cannot fully exploit the extra
+flexibility a larger battery provides the way full foresight can.
+
 ## Limitations and next steps
 
 GridFlex omits transmission constraints, reserve requirements, interconnection,

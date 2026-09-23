@@ -26,13 +26,16 @@ Streamlit scenario dashboard.
 ## Dashboard
 
 The sidebar controls renewable penetration, storage energy and power, round-trip
-efficiency, demand flexibility, and the peak-shaving threshold. Four views explain
+efficiency, demand flexibility, and the peak-shaving threshold. Five views explain
 both the outcome and the mechanism:
 
 1. **System impact** — headline metrics and before/after residual load.
 2. **Dispatch detail** — charge, discharge, state of charge, and shifted load.
 3. **Forecast lab** — chronological model evaluation against persistence.
-4. **Methodology** — assumptions and claims the prototype deliberately avoids.
+4. **Optimizer benchmark** — the causal heuristic vs. a linear-programming
+   perfect-foresight upper bound, isolating the battery's own contribution
+   from demand flexibility's.
+5. **Methodology** — assumptions and claims the prototype deliberately avoids.
 
 ## Quick start
 
@@ -60,7 +63,8 @@ gridflex-ai/
 │   ├── data.py                    # Loading, synthetic data, scaling
 │   ├── flexibility.py             # Energy-conserving load shifting
 │   ├── forecasting.py             # Chronological ML benchmark
-│   └── metrics.py                 # System-impact evaluation
+│   ├── metrics.py                 # System-impact evaluation
+│   └── optimizer.py               # Perfect-foresight LP peak-shaving bound
 └── tests/                         # Physics and integration checks
 ```
 
@@ -114,6 +118,9 @@ GitHub Actions runs tests and linting on every push and pull request.
 - At what renewable share does curtailment begin to grow rapidly?
 - Can 5–10% daily demand flexibility outperform additional battery capacity?
 - How does a tighter reserve SOC trade renewable use against peak protection?
+- How much of the theoretically achievable peak reduction does a simple
+  threshold rule actually capture, and does that share shrink as the battery
+  grows? (See the Optimizer benchmark tab.)
 
 ## Responsible interpretation
 
@@ -125,7 +132,9 @@ weather/generation data rather than relabeling the European sample.
 
 ## Roadmap
 
-- Rolling-horizon linear optimization with forecast uncertainty.
+- Rolling-horizon optimization under forecast uncertainty (the current LP
+  benchmark uses full-horizon perfect foresight as an upper bound, not a
+  realistic operating policy).
 - Battery degradation and levelized flexibility cost.
 - Long-duration storage and interconnector scenarios.
 - Open, well-sourced Morocco solar-flexibility case study.
