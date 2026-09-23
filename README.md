@@ -21,7 +21,8 @@ Streamlit scenario dashboard.
 - Compares an ML demand forecast against a naive day-ahead baseline on a true
   chronological holdout.
 - Exposes every major assumption in the interface and documents limitations.
-- Runs offline with the bundled public-data sample or a deterministic stress test.
+- Runs offline with two bundled real public-data samples (Germany, Morocco)
+  or a deterministic synthetic stress test.
 
 ## Dashboard
 
@@ -54,18 +55,20 @@ Then open <http://localhost:8501>.
 
 ```text
 gridflex-ai/
-├── app.py                         # Interactive scenario dashboard
-├── data/opsd_germany_sample.csv   # 60-day public-data extract
-├── docs/methodology.md            # Equations, definitions, limitations
-├── scripts/extract_opsd_sample.py # Reproducible data extraction
+├── app.py                            # Interactive scenario dashboard
+├── data/opsd_germany_sample.csv      # 60-day Germany public-data extract
+├── data/morocco_tetouan_sample.csv   # 60-day Morocco public-data extract
+├── docs/methodology.md               # Equations, definitions, limitations
+├── scripts/extract_opsd_sample.py    # Reproducible Germany data extraction
+├── scripts/extract_morocco_sample.py # Reproducible Morocco data extraction
 ├── src/
-│   ├── battery.py                 # Constrained dispatch controller
-│   ├── data.py                    # Loading, synthetic data, scaling
-│   ├── flexibility.py             # Energy-conserving load shifting
-│   ├── forecasting.py             # Chronological ML benchmark
-│   ├── metrics.py                 # System-impact evaluation
-│   └── optimizer.py               # Perfect-foresight LP peak-shaving bound
-└── tests/                         # Physics and integration checks
+│   ├── battery.py                    # Constrained dispatch controller
+│   ├── data.py                       # Loading, synthetic data, scaling
+│   ├── flexibility.py                # Energy-conserving load shifting
+│   ├── forecasting.py                # Chronological ML benchmark
+│   ├── metrics.py                    # System-impact evaluation
+│   └── optimizer.py                  # Perfect-foresight LP peak-shaving bound
+└── tests/                            # Physics and integration checks
 ```
 
 ## Model flow
@@ -95,12 +98,18 @@ the energy balance, metric definitions, and scope boundaries.
 
 The bundled Germany sample comes from **Open Power System Data, Time Series
 package v2020-10-06**, which compiles hourly electricity load, wind, and solar
-generation from sources including ENTSO-E Transparency. The exact attribution
-and transformation are recorded in [`data/README.md`](data/README.md).
+generation from sources including ENTSO-E Transparency.
+
+The bundled Morocco sample comes from the **Power Consumption of Tetouan City**
+dataset (UCI ML Repository, CC BY 4.0) — real utility SCADA demand and local
+weather from Tétouan, northern Morocco. Its solar and wind columns are
+*estimated* from that real weather via standard physical conversions, not
+measured generation; see [`data/README.md`](data/README.md) for exactly what
+is measured, what is derived, and why.
 
 The app scales these historical shapes to counterfactual renewable shares. This
-supports sensitivity analysis; it does **not** recreate Germany's market or grid.
-The synthetic mode remains available for offline stress testing.
+supports sensitivity analysis; it does **not** recreate either country's actual
+market or grid. The synthetic mode remains available for offline stress testing.
 
 ## Run tests
 
@@ -121,14 +130,19 @@ GitHub Actions runs tests and linting on every push and pull request.
 - How much of the theoretically achievable peak reduction does a simple
   threshold rule actually capture, and does that share shrink as the battery
   grows? (See the Optimizer benchmark tab.)
+- How does the Morocco (Tétouan) case study differ from the Germany case
+  study once both are scaled to the same renewable penetration — same
+  battery, same flexibility, different local demand and weather shape?
 
 ## Responsible interpretation
 
 GridFlex is a learning and scenario-analysis tool. It omits transmission,
 interconnection, reserve procurement, prices, degradation cost, and generator
 commitment. Outputs are not forecasts, operating instructions, or investment
-advice. A Morocco/North Africa extension should use locally sourced load and
-weather/generation data rather than relabeling the European sample.
+advice. The Morocco sample uses real, locally sourced load and weather data
+(see [`data/README.md`](data/README.md)) rather than relabeling the European
+sample, but it covers one city, not Morocco's national grid, and its solar
+and wind columns are estimated from real weather, not measured generation.
 
 ## Roadmap
 
@@ -137,7 +151,8 @@ weather/generation data rather than relabeling the European sample.
   realistic operating policy).
 - Battery degradation and levelized flexibility cost.
 - Long-duration storage and interconnector scenarios.
-- Open, well-sourced Morocco solar-flexibility case study.
+- A national or regional Morocco case study with real utility-scale
+  renewable generation data, extending the current single-city sample.
 - Scenario export and experiment comparison.
 
 ## License

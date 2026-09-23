@@ -24,6 +24,27 @@ They are scaled together until annual renewable energy equals the user-selected
 percentage of demand energy. This is a scenario parameter, not a claim about the
 historical German generation mix.
 
+## Data sources
+
+GridFlex ships three input profiles, with different provenance:
+
+- **OPSD (Germany):** real historical hourly demand, solar, and wind
+  generation, from public grid-operator data via ENTSO-E.
+- **Morocco (Tétouan):** real hourly demand from utility SCADA readings
+  (Amendis, 2017). Solar and wind are *estimated* from real local irradiance
+  and wind-speed measurements at the same substations via standard physical
+  conversions, not measured generation — see [`data/README.md`](../data/README.md)
+  for the full derivation and the reasoning behind the kW unit assumption.
+- **Synthetic stress test:** fully synthetic, seeded for reproducibility, used
+  for offline exploration and to exercise edge cases the real samples may not
+  cover.
+
+Mixing real demand with an estimated renewable shape (Morocco) is a documented
+methodological choice, not an attempt to pass off a simulation as a measurement.
+The interface and this document say which parts of each scenario are measured
+and which are derived, so no output should be read as more precise than its
+source data supports.
+
 ## Demand flexibility
 
 For each day, GridFlex identifies the highest and lowest residual-load quartiles.
@@ -92,4 +113,9 @@ flexibility a larger battery provides the way full foresight can.
 GridFlex omits transmission constraints, reserve requirements, interconnection,
 market prices, battery degradation, network losses, and unit commitment. Useful
 extensions include rolling-horizon optimization, degradation-aware dispatch,
-weather-based renewable forecasts, and a carefully sourced Morocco case study.
+and weather-based renewable forecasts. The Morocco sample is a first step
+toward a locally sourced case study, not a finished one: it covers one city's
+real demand and weather, not a national grid, and its renewable profile is
+estimated rather than measured. A fuller version would add real Moroccan
+utility-scale solar/wind generation data and a national or regional demand
+series, if and when such data becomes openly available.

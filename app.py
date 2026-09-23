@@ -1,6 +1,8 @@
 """GridFlex AI interactive scenario laboratory."""
 
 
+from pathlib import Path
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -45,10 +47,15 @@ st.markdown(
 )
 
 
+MOROCCO_SAMPLE_PATH = Path(__file__).resolve().parent / "data" / "morocco_tetouan_sample.csv"
+
+
 @st.cache_data
 def get_data(source: str, days: int) -> pd.DataFrame:
-    if source == "Public OPSD sample":
+    if source == "Public OPSD sample (Germany)":
         return load_timeseries().iloc[: days * 24]
+    if source == "Morocco (Tétouan, real demand + weather)":
+        return load_timeseries(MOROCCO_SAMPLE_PATH).iloc[: days * 24]
     return generate_demo_data(days=days)
 
 
@@ -87,7 +94,14 @@ st.markdown(
 
 with st.sidebar:
     st.markdown("## Scenario controls")
-    source = st.selectbox("Input profile", ["Public OPSD sample", "Synthetic stress test"])
+    source = st.selectbox(
+        "Input profile",
+        [
+            "Public OPSD sample (Germany)",
+            "Morocco (Tétouan, real demand + weather)",
+            "Synthetic stress test",
+        ],
+    )
     days = st.select_slider("Analysis horizon", options=[7, 14, 30, 60], value=30)
     penetration = st.slider("Renewable penetration", 20, 140, 75, 5, format="%d%%")
     st.markdown("### Battery")
@@ -118,6 +132,12 @@ st.caption(
     f"{source}  ·  {len(simulated):,} hourly observations  ·  "
     f"{simulated.index.min():%d %b %Y} → {simulated.index.max():%d %b %Y}"
 )
+if source == "Morocco (Tétouan, real demand + weather)":
+    st.caption(
+        "Demand is real (Amendis SCADA, Tétouan, 2017, CC BY 4.0 via UCI ML Repository). "
+        "Solar and wind are estimated from real local irradiance and wind-speed readings "
+        "at the same substations, not measured generation — see Methodology."
+    )
 
 tabs = st.tabs(
     ["System impact", "Dispatch detail", "Forecast lab", "Optimizer benchmark", "Methodology"]
@@ -297,7 +317,11 @@ with tabs[4]:
           foresight, but only to measure an upper bound, never as a claim
           about what a real controller could execute in operation.
         - No transmission constraints, ancillary services, or degradation cost.
-        - OPSD is a European case study, not a model of Morocco's national grid.
+        - OPSD is a European case study; the Morocco sample is one city
+          (Tétouan), not a model of Morocco's national grid.
+        - In the Morocco sample, only demand is measured. Solar and wind are
+          *estimated* from real local irradiance and wind-speed readings via
+          a standard conversion, not measured generation.
         - Results show scenario sensitivity, not an investment recommendation.
         """)
     st.info("Core design principle: every headline metric can be traced back to an hourly power balance.")
