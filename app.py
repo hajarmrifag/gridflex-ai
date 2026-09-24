@@ -136,7 +136,7 @@ if source == "Morocco (Tétouan, real demand + weather)":
     st.caption(
         "Demand is real (Amendis SCADA, Tétouan, 2017, CC BY 4.0 via UCI ML Repository). "
         "Solar and wind are estimated from real local irradiance and wind-speed readings "
-        "at the same substations, not measured generation — see Methodology."
+        "at the same substations, not measured generation; see Methodology."
     )
 
 tabs = st.tabs(
@@ -246,7 +246,7 @@ with tabs[3]:
         "The dispatch tabs above use a causal rule: charge on surplus, discharge above a "
         "fixed peak target. This benchmark instead solves a linear program with perfect "
         "foresight of the whole horizon, so it can plan ahead in a way no real controller "
-        "can. It is not a claim about achievable operation — it is an upper bound the "
+        "can. It is not a claim about achievable operation; it is an upper bound the "
         "heuristic can be measured against."
     )
     st.caption(
@@ -272,7 +272,7 @@ with tabs[3]:
         if battery_achievable < max(0.005 * no_battery_peak, 1e-6):
             st.info(
                 "The battery's power rating is too small relative to this system's peak "
-                "for storage-driven peak-shaving to move the needle here — both the "
+                "for storage-driven peak-shaving to move the needle here; both the "
                 "heuristic and the theoretical optimum leave the post-flexibility peak "
                 "almost unchanged. Try the synthetic stress test or a larger battery to "
                 "see the gap widen."

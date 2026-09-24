@@ -33,7 +33,7 @@ GridFlex ships three input profiles, with different provenance:
 - **Morocco (Tétouan):** real hourly demand from utility SCADA readings
   (Amendis, 2017). Solar and wind are *estimated* from real local irradiance
   and wind-speed measurements at the same substations via standard physical
-  conversions, not measured generation — see [`data/README.md`](../data/README.md)
+  conversions, not measured generation; see [`data/README.md`](../data/README.md)
   for the full derivation and the reasoning behind the kW unit assumption.
 - **Synthetic stress test:** fully synthetic, seeded for reproducibility, used
   for offline exploration and to exercise edge cases the real samples may not

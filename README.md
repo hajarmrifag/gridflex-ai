@@ -47,13 +47,13 @@ The sidebar controls renewable penetration, storage energy and power, round-trip
 efficiency, demand flexibility, and the peak-shaving threshold. Five views explain
 both the outcome and the mechanism:
 
-1. **System impact** — headline metrics and before/after residual load.
-2. **Dispatch detail** — charge, discharge, state of charge, and shifted load.
-3. **Forecast lab** — chronological model evaluation against persistence.
-4. **Optimizer benchmark** — the causal heuristic vs. a linear-programming
+1. **System impact**: headline metrics and before/after residual load.
+2. **Dispatch detail**: charge, discharge, state of charge, and shifted load.
+3. **Forecast lab**: chronological model evaluation against persistence.
+4. **Optimizer benchmark**: the causal heuristic vs. a linear-programming
    perfect-foresight upper bound, isolating the battery's own contribution
    from demand flexibility's.
-5. **Methodology** — assumptions and claims the prototype deliberately avoids.
+5. **Methodology**: assumptions and claims the prototype deliberately avoids.
 
 ## Results
 
@@ -212,7 +212,7 @@ package v2020-10-06**, which compiles hourly electricity load, wind, and solar
 generation from sources including ENTSO-E Transparency.
 
 The bundled Morocco sample comes from the **Power Consumption of Tetouan City**
-dataset (UCI ML Repository, CC BY 4.0) — real utility SCADA demand and local
+dataset (UCI ML Repository, CC BY 4.0): real utility SCADA demand and local
 weather from Tétouan, northern Morocco. Its solar and wind columns are
 *estimated* from that real weather via standard physical conversions, not
 measured generation; see [`data/README.md`](data/README.md) for exactly what
@@ -242,7 +242,7 @@ GitHub Actions runs tests and linting on every push and pull request.
   threshold rule actually capture, and does that share shrink as the battery
   grows? (See the Optimizer benchmark tab.)
 - How does the Morocco (Tétouan) case study differ from the Germany case
-  study once both are scaled to the same renewable penetration — same
+  study once both are scaled to the same renewable penetration: same
   battery, same flexibility, different local demand and weather shape?
 
 ## Responsible interpretation

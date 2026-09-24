@@ -31,7 +31,7 @@ three distribution zones, alongside co-located weather measurements
 - `demand_mw` is real measured demand: the three zone power-consumption
   columns, summed and resampled to hourly means. The UCI page does not state
   their units. We treat them as kW (converted to MW here) because that is the
-  only unit consistent with Morocco's actual scale — summed this way, city
+  only unit consistent with Morocco's actual scale; summed this way, city
   demand comes out to ~40–130 MW, a plausible ~1–2% of Morocco's national
   peak (a record 8,400 MW in 2026, per ONEE). Reading them as MW instead would
   put one mid-sized city's demand above the entire country's peak, which is
@@ -42,14 +42,14 @@ three distribution zones, alongside co-located weather measurements
   solar shape via the standard STC convention (output scales linearly with
   irradiance relative to 1,000 W/m²) and wind speed to a wind shape via a
   standard three-region turbine power curve (cut-in 3 m/s, rated 12 m/s,
-  cut-out 25 m/s). Both are normalised shapes — like the OPSD and synthetic
+  cut-out 25 m/s). Both are normalised shapes, like the OPSD and synthetic
   sources, the app's own `scale_renewables()` rescales them to whatever
   renewable-penetration percentage the user selects, so the absolute
   nameplate capacity assumed here does not matter.
 - Measured wind speeds at these substations average ~2 m/s and rarely near
   turbine rated speed, so the derived wind shape is small; this sample is
   solar-dominated. That is a real property of this data, not a modelling
-  choice — and it is broadly consistent with Morocco's renewable mix being
+  choice, and it is broadly consistent with Morocco's renewable mix being
   solar-led outside dedicated wind corridors (e.g. Tarfaya).
 
 This is one city, not a model of Morocco's national grid. See the
