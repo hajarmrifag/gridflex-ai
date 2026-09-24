@@ -4,7 +4,7 @@
 ![Python](https://img.shields.io/badge/python-3.12%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-[Results](#results) · [Methodology](docs/methodology.md) · [Data provenance](data/README.md) · [Source](src/)
+[**Live demo**](https://gridflex-energy-sim.streamlit.app/) · [Results](#results) · [Methodology](docs/methodology.md) · [Data provenance](data/README.md) · [Source](src/)
 
 **An interactive battery-dispatch and demand-flexibility laboratory for
 renewable power systems.**
