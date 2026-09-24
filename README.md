@@ -1,5 +1,11 @@
 # GridFlex AI
 
+[![CI](https://github.com/hajarmrifag/gridflex-ai/actions/workflows/test.yml/badge.svg)](https://github.com/hajarmrifag/gridflex-ai/actions/workflows/test.yml)
+![Python](https://img.shields.io/badge/python-3.12%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+[Results](#results) · [Methodology](docs/methodology.md) · [Data provenance](data/README.md) · [Source](src/)
+
 **An interactive battery-dispatch and demand-flexibility laboratory for
 renewable power systems.**
 
@@ -11,6 +17,15 @@ The project is intentionally small enough to audit and serious enough to extend.
 It combines hourly public power-system data, physical battery constraints,
 energy-conserving demand response, chronological forecasting, and a polished
 Streamlit scenario dashboard.
+
+## Why this matters
+
+As wind and solar supply a larger share of electricity, the grid's problem shifts
+from *generating* enough energy to *matching* it in time: midday solar surplus
+gets curtailed, and evening net-load peaks still need firm capacity. Storage and
+demand response are two of the main flexibility options for closing that gap.
+GridFlex is a small, transparent experiment on how far each option goes, and on
+how the answer depends on the local demand and weather profile.
 
 ## What makes it useful
 
@@ -37,6 +52,100 @@ both the outcome and the mechanism:
    perfect-foresight upper bound, isolating the battery's own contribution
    from demand flexibility's.
 5. **Methodology** — assumptions and claims the prototype deliberately avoids.
+
+## Results
+
+All numbers below come from [`scripts/run_experiments.py`](scripts/run_experiments.py)
+(reproducible with `pip install matplotlib && python scripts/run_experiments.py`). Setup: the first 60 days
+of each bundled sample (Tétouan: Jan-Feb 2017; Germany: Jan-Mar 2015), renewables
+scaled to 75% of demand energy unless stated, 90% round-trip efficiency, and
+peak-shaving threshold at the 72nd percentile of positive net load. Batteries are
+sized **relative to each system's mean demand** (power = 10% of mean demand,
+energy = duration x power) so a city-scale and a national-scale system are
+comparable. "Curtailment" means renewable output exceeding instantaneous demand
+with no export; both regions are treated as isolated systems.
+
+### RQ1: what does extra battery energy capacity buy at fixed power?
+
+![RQ1](docs/img/rq1_storage_duration.png)
+
+| System | Storage duration | Curtailment avoided | Renewable utilisation | Peak reduction |
+|---|---|---|---|---|
+| Tétouan | none | 0% | 48.0% | 0% |
+| Tétouan | 4 h | 3.6% | 49.9% | 0.6% |
+| Tétouan | 12 h | 6.4% | 51.3% | 0.6% |
+| Germany | none | 0% | 81.6% | 0% |
+| Germany | 4 h | 1.6% | 81.9% | 0% |
+| Germany | 12 h | 3.6% | 82.3% | 0% |
+
+Curtailment avoided keeps growing with duration, but with diminishing returns
+(Tétouan gains 3.6 points from 0 to 4 h and 2.8 more from 4 to 12 h). At a fixed
+power rating, more energy capacity cannot remove the bulk of curtailment: at 75%
+renewables, Tétouan still wastes about half of its renewable energy even with 12 h
+of storage, because the surplus is far larger than a 10%-of-demand battery can absorb.
+
+**The threshold heuristic captures almost none of the peak-shaving value.** The
+perfect-foresight LP benchmark shows a 6.7% (Tétouan) and 8.4% (Germany) peak
+reduction is physically achievable with the 4 h battery, versus 0.6% and 0% for
+the causal rule. The rule spends stored energy on every hour above the threshold
+and has nothing left when the single highest peak arrives. Storage duration
+beyond 4 h adds nothing to peak reduction for either policy: the binding limit is
+the power rating.
+
+### RQ2: 5-10% demand flexibility vs more battery capacity
+
+![RQ2](docs/img/rq2_flex_vs_storage.png)
+
+| Tétouan, 75% renewables | 0% flex | 5% flex | 10% flex | 20% flex |
+|---|---|---|---|---|
+| no storage: peak reduction | 0% | 5.0% | 10.0% | 20.0% |
+| no storage: curtailment avoided | 0 MWh | 1,508 MWh | 3,006 MWh | 5,904 MWh |
+| 8 h storage: peak reduction | 0.6% | 5.6% | 10.5% | 20.0% |
+| 8 h storage: curtailment avoided | 2,315 MWh | 3,787 MWh | 5,214 MWh | 7,988 MWh |
+
+In Tétouan, **5% demand flexibility with no battery avoided about as much
+curtailment (1,508 MWh) as a 4 h battery (1,360 MWh) and cut peak demand 5.0%
+versus 0.6%.** 10% flexibility alone beat an 8 h battery on both metrics. Flexibility
+also stacks: 10% flexibility plus 8 h storage avoids 5,214 MWh, more than either alone.
+
+**Germany shows the limit of the shifting rule.** Peak reduction rises to 7.5% at
+10% flexibility, then turns *negative* (-2.5% at 15%, -19.6% at 20%). The rule moves
+demand into the lowest-residual-load hours of each day, and on calm days those
+hours are not much lower than the peak hours, so shifting a large share creates a
+new "rebound" peak. Curtailment avoided still increases monotonically. This is a
+property of the greedy shifting rule, not evidence that real demand response
+harms grids, and it motivates a peak-aware allocation as future work.
+
+### RQ3: same scenario, different local profile
+
+![RQ3](docs/img/rq3_profile_comparison.png)
+
+Scaling both systems to the same renewable share gives very different outcomes,
+because the local shape of demand and renewable output differs:
+
+| Renewables (% of demand energy) | Tétouan curtailed | Germany curtailed |
+|---|---|---|
+| 25% | 6.1% | 0.0% |
+| 50% | 35.7% | 4.4% |
+| 75% | 52.0% | 18.4% |
+| 100% | 61.6% | 30.1% |
+
+Tétouan starts curtailing at much lower penetration. A plausible reading (not
+separately tested here) is that its estimated solar output is concentrated in the
+midday hours, so surplus arrives all at once and cannot be absorbed in the same
+hour, whereas Germany's wind adds output across more hours of the day. If so, the
+flexibility need for a solar-heavy profile is driven more by *daily timing* than
+by total energy. Adding 4 h storage and 10% flexibility raises Tétouan's peak reduction to
+10-12% at every penetration, while Germany's rises with penetration (3.8% to 10.2%).
+
+### Caveats
+
+- One 60-day winter window per system; seasonality is not captured.
+- Tétouan is a single city, and its solar and wind output is estimated from
+  weather, not metered (see [`data/README.md`](data/README.md)).
+- Peak reduction is measured on the single highest net-load hour, so it is
+  sensitive to one event; the LP benchmark shows how much of it is achievable.
+- No prices, network constraints, degradation, or reserves are modelled.
 
 ## Quick start
 
