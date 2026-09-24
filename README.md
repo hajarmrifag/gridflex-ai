@@ -18,6 +18,8 @@ It combines hourly public power-system data, physical battery constraints,
 energy-conserving demand response, chronological forecasting, and a polished
 Streamlit scenario dashboard.
 
+![GridFlex dashboard, Tétouan profile](docs/img/dashboard.png)
+
 ## Why this matters
 
 As wind and solar supply a larger share of electricity, the grid's problem shifts
