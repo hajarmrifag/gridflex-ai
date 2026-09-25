@@ -1,5 +1,7 @@
 # Run and deploy GridFlex
 
+The public workspace is hosted at **https://gridflex.onrender.com/**. Deployments track `main` through the repository's Render Blueprint.
+
 ## Local production preview
 
 ```bash

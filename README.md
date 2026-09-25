@@ -11,7 +11,7 @@ GridFlex combines a React/TypeScript workspace, a bounded FastAPI simulation API
 
 ![GridFlex workspace](docs/img/workspace.jpg)
 
-[Methodology](docs/methodology.md) · [Architecture](docs/architecture.md) · [Performance](benchmarks/README.md) · [Data provenance](data/README.md) · [Deployment](docs/deployment.md)
+[Open GridFlex](https://gridflex.onrender.com/) · [Methodology](docs/methodology.md) · [Architecture](docs/architecture.md) · [Performance](benchmarks/README.md) · [Data provenance](data/README.md) · [Deployment](docs/deployment.md)
 
 ## The workspace
 
