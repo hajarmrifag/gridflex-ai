@@ -7,6 +7,8 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from .validation import finite_columns, finite_scalar
+
 
 @dataclass(frozen=True)
 class BatteryConfig:
@@ -21,6 +23,8 @@ class BatteryConfig:
     max_soc_pct: float = 95.0
 
     def __post_init__(self) -> None:
+        for name, value in vars(self).items():
+            finite_scalar(value, name)
         if self.capacity_mwh <= 0:
             raise ValueError("Battery capacity must be positive")
         if self.max_charge_mw < 0 or self.max_discharge_mw < 0:
@@ -46,13 +50,12 @@ def simulate_battery(
     load above ``peak_target_mw``, making the policy easy to audit.
     """
 
-    if "net_load_mw" not in frame:
-        raise ValueError("frame must contain net_load_mw")
-    if timestep_hours <= 0:
-        raise ValueError("timestep_hours must be positive")
+    finite_scalar(timestep_hours, "timestep_hours", strict=True)
+    net = finite_columns(frame, ["net_load_mw"])[:, 0]
+    if peak_target_mw is not None:
+        finite_scalar(peak_target_mw, "peak_target_mw")
 
     result = frame.copy()
-    net = result["net_load_mw"].to_numpy(dtype=float)
     if peak_target_mw is None:
         positive = net[net > 0]
         peak_target_mw = float(np.quantile(positive, 0.75)) if positive.size else 0.0
@@ -77,9 +80,7 @@ def simulate_battery(
         elif value > peak_target_mw:
             required_power = value - peak_target_mw
             available_power = (energy - min_energy) * eta_discharge / timestep_hours
-            discharge[i] = max(
-                0.0, min(required_power, config.max_discharge_mw, available_power)
-            )
+            discharge[i] = max(0.0, min(required_power, config.max_discharge_mw, available_power))
             energy -= discharge[i] / eta_discharge * timestep_hours
 
         post[i] = value + charge[i] - discharge[i]

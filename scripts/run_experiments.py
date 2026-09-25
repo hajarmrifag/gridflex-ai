@@ -55,7 +55,7 @@ def run(raw, penetration, power_pct, duration_h, flex_pct):
 
 
 def main() -> None:
-    data = {n: load_timeseries(p).iloc[: DAYS * 24] for n, p in SYSTEMS.items()}
+    data = {n: load_timeseries(p, gap_policy="interpolate").iloc[: DAYS * 24] for n, p in SYSTEMS.items()}
     rows = []
 
     # RQ1: battery energy capacity at fixed power (10% of mean demand), 75% renewables.

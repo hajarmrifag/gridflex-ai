@@ -20,7 +20,7 @@ difference between energy charged and energy later discharged.
 ## Renewable penetration
 
 The wind and solar profiles retain their historical shapes and technology mix.
-They are scaled together until annual renewable energy equals the user-selected
+They are scaled together until renewable energy over the selected horizon equals the user-selected
 percentage of demand energy. This is a scenario parameter, not a claim about the
 historical German generation mix.
 
@@ -50,7 +50,9 @@ source data supports.
 For each day, GridFlex identifies the highest and lowest residual-load quartiles.
 The selected flexible share is removed from high-load hours and reallocated to
 low-load hours. Allocation favours hours with more renewable surplus. Energy is
-conserved within every day; this is verified in the automated tests.
+conserved within every day; this is verified in the automated tests. If the upper
+and lower quartiles are equal, the window is left unchanged. More shifting can
+create new peaks; benefits are not assumed to be monotonic.
 
 The abstraction can represent schedulable EV charging, electric water heating,
 industrial loads, or thermal storage. It does not model customer-specific comfort
@@ -67,8 +69,12 @@ Every step respects energy capacity, charge/discharge power, minimum and maximum
 state of charge, and symmetric conversion efficiencies whose product equals the
 configured round-trip efficiency.
 
-This heuristic is deliberately interpretable. It is not a claim of globally
-optimal dispatch and does not assume perfect electricity prices.
+Battery decisions use current state and a fixed threshold. However, the threshold
+is calculated from the selected historical profile and demand shifting sees each
+whole day, so the complete experiment is retrospective. It is not globally optimal
+and does not assume perfect electricity prices. Initial stored energy is part of
+the experiment and may be depleted; there is no default requirement to finish at
+the starting state of charge.
 
 ## Metrics
 
@@ -86,7 +92,12 @@ A histogram gradient-boosting model uses hour, weekday, cyclical time features,
 and 24/168-hour demand lags. Evaluation is chronological: the final 20% is never
 used for fitting. A 24-hour persistence forecast provides a simple baseline.
 Forecasting is presented as an analytical benchmark and is not used to make the
-rule-based dispatch appear more intelligent than it is.
+rule-based dispatch appear more intelligent than it is. It is a rolling day-ahead
+evaluation with observed lags, not one forecast of an entire future horizon.
+Training and test rows with interpolated target values or interpolated 24/168-hour
+lags are excluded. Early stopping is disabled to avoid random validation splits.
+Percentage improvement is undefined (reported as null/N/A) when persistence has
+zero error.
 
 ## Optimizer benchmark
 
@@ -96,6 +107,15 @@ analysis horizon at once. This LP sees the entire horizon in advance, which no
 real controller can, so it is reported strictly as an upper bound: "how much
 peak reduction is physically possible from this exact battery, given perfect
 information," not a claim about achievable real-time operation.
+
+The LP first minimizes nonnegative peak import, then minimizes battery throughput
+while keeping the peak within an explicit numerical tolerance. This removes the
+old weighted-objective tradeoff in which cycling penalties could sacrifice peak
+performance. Grid charging is an explicit option: the Python API retains its
+historical default of enabled; the interfaces default to disabled to match the
+heuristic. Stored energy is never exported. An optional terminal SOC floor can
+require restoring the initial charge; that is a stricter constraint than the
+heuristic and may be infeasible. The UI hides the capture ratio in that mode.
 
 Both the heuristic and the LP dispatch the same battery on top of the same
 demand-flexibility result, so the comparison isolates what the battery itself
@@ -119,3 +139,16 @@ real demand and weather, not a national grid, and its renewable profile is
 estimated rather than measured. A fuller version would add real Moroccan
 utility-scale solar/wind generation data and a national or regional demand
 series, if and when such data becomes openly available.
+
+## Data quality and stress experiments
+
+The German CSV has a missing 24-hour period on 2015-02-28. Application loaders
+explicitly interpolate the gap on an hourly grid and disclose filled hours in
+the selected horizon. Custom loader calls reject gaps unless interpolation is
+explicitly selected. NaNs, infinities, duplicate timestamps and missing files
+are never silently dropped or replaced with synthetic data. See the data README.
+
+Stress tests raise demand from 17:00 through 20:59 in the profile's time zone and
+derate wind/solar across the full horizon. Installed generation scaling and the
+original dispatch threshold stay fixed; demand shifting is recalculated. Stress
+outputs are deterministic sensitivity results, not outage probabilities.

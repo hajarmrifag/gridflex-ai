@@ -1,11 +1,4 @@
-"""Perfect-foresight peak-shaving benchmark, solved as a linear program.
-
-This is deliberately *not* a claim about achievable real-time dispatch: it
-sees the entire horizon at once, which no controller can do in operation.
-Its purpose is to answer a narrower, defensible question: given the same
-battery, how much of the theoretically achievable peak reduction does the
-causal, rule-based controller in `battery.py` actually capture?
-"""
+"""Sparse perfect-foresight peak minimization with explicit operating constraints."""
 
 from __future__ import annotations
 
@@ -15,6 +8,7 @@ from scipy.optimize import linprog
 from scipy.sparse import coo_matrix
 
 from .battery import BatteryConfig
+from .validation import finite_columns, finite_scalar
 
 
 def optimize_battery(
@@ -22,94 +16,112 @@ def optimize_battery(
     config: BatteryConfig,
     timestep_hours: float = 1.0,
     cycling_penalty: float = 1e-4,
+    *,
+    allow_grid_charging: bool = True,
+    terminal_soc_pct: float | None = None,
 ) -> pd.DataFrame:
-    """Minimize peak grid import over the full horizon with perfect foresight.
+    """Minimize peak import first, then throughput without sacrificing the peak.
 
-    Formulated as a linear program: minimise the worst-case grid import `P`
-    subject to battery power/energy limits and the state-of-charge dynamics.
-    A small `cycling_penalty` on total charge/discharge throughput breaks
-    ties among equally-optimal-peak solutions in favour of less churn, so
-    the result is not just optimal but also interpretable.
+    A positive ``cycling_penalty`` enables a second, lexicographic solve; its
+    magnitude never trades peak performance for fewer cycles. Zero skips the
+    tie-break. Grid charging is retained as the API default for compatibility;
+    disable it to match the surplus-only heuristic's operating policy.
+    ``terminal_soc_pct`` sets a minimum end-of-horizon SOC, if requested.
     """
-
-    if "net_load_mw" not in frame:
-        raise ValueError("frame must contain net_load_mw")
-    if timestep_hours <= 0:
-        raise ValueError("timestep_hours must be positive")
-
-    net = frame["net_load_mw"].to_numpy(dtype=float)
+    finite_scalar(timestep_hours, "timestep_hours", strict=True)
+    finite_scalar(cycling_penalty, "cycling_penalty")
+    net = finite_columns(frame, ["net_load_mw"])[:, 0]
     n = len(net)
-    if n == 0:
-        raise ValueError("frame must contain at least one row")
+    if terminal_soc_pct is not None:
+        finite_scalar(terminal_soc_pct, "terminal_soc_pct")
+        if not config.min_soc_pct <= terminal_soc_pct <= config.max_soc_pct:
+            raise ValueError("terminal_soc_pct must fall inside the allowed SOC range")
 
-    eta_charge = float(np.sqrt(config.round_trip_efficiency))
-    eta_discharge = float(np.sqrt(config.round_trip_efficiency))
+    eta = float(np.sqrt(config.round_trip_efficiency))
     min_energy = config.capacity_mwh * config.min_soc_pct / 100
     max_energy = config.capacity_mwh * config.max_soc_pct / 100
     initial_energy = config.capacity_mwh * config.initial_soc_pct / 100
-
-    # Variable layout: [c_0..c_{n-1}, d_0..d_{n-1}, e_0..e_{n-1}, P]
+    # Layout: charge, discharge, end-of-step energy, peak import.
     n_vars = 3 * n + 1
-    c_idx = np.arange(n)
-    d_idx = n + np.arange(n)
-    e_idx = 2 * n + np.arange(n)
-    p_idx = 3 * n
-
+    t = np.arange(n)
+    c_idx, d_idx, e_idx, p_idx = t, n + t, 2 * n + t, 3 * n
     cost = np.zeros(n_vars)
-    cost[c_idx] = cycling_penalty
-    cost[d_idx] = cycling_penalty
     cost[p_idx] = 1.0
 
-    # Equality constraints: SOC dynamics, e_t = e_{t-1} + eta_c*dt*c_t - dt/eta_d*d_t
-    eq_rows, eq_cols, eq_vals = [], [], []
-    eq_rhs = np.zeros(n)
-    for t in range(n):
-        eq_rows += [t, t, t]
-        eq_cols += [e_idx[t], c_idx[t], d_idx[t]]
-        eq_vals += [1.0, -eta_charge * timestep_hours, timestep_hours / eta_discharge]
-        if t == 0:
-            eq_rhs[t] = initial_energy
-        else:
-            eq_rows.append(t)
-            eq_cols.append(e_idx[t - 1])
-            eq_vals.append(-1.0)
+    # Four nonzeros per time step: build directly in NumPy, O(n) storage.
+    eq_rows = np.concatenate([t, t, t, t[1:]])
+    eq_cols = np.concatenate([e_idx, c_idx, d_idx, e_idx[:-1]])
+    eq_vals = np.concatenate(
+        [
+            np.ones(n),
+            np.full(n, -eta * timestep_hours),
+            np.full(n, timestep_hours / eta),
+            -np.ones(n - 1),
+        ]
+    )
     a_eq = coo_matrix((eq_vals, (eq_rows, eq_cols)), shape=(n, n_vars)).tocsr()
+    eq_rhs = np.zeros(n)
+    eq_rhs[0] = initial_energy
+    a_ub = coo_matrix(
+        (
+            np.concatenate([np.ones(n), -np.ones(n), -np.ones(n)]),
+            (np.tile(t, 3), np.concatenate([c_idx, d_idx, np.full(n, p_idx)])),
+        ),
+        shape=(n, n_vars),
+    ).tocsr()
 
-    # Inequality constraints: net_t + c_t - d_t <= P  =>  c_t - d_t - P <= -net_t
-    ub_rows = np.concatenate([np.arange(n), np.arange(n), np.arange(n)])
-    ub_cols = np.concatenate([c_idx, d_idx, np.full(n, p_idx)])
-    ub_vals = np.concatenate([np.ones(n), -np.ones(n), -np.ones(n)])
-    a_ub = coo_matrix((ub_vals, (ub_rows, ub_cols)), shape=(n, n_vars)).tocsr()
-    b_ub = -net
+    charge_limit = np.full(n, config.max_charge_mw)
+    if not allow_grid_charging:
+        charge_limit = np.minimum(charge_limit, np.maximum(-net, 0))
+    # Batteries supply imports, never export stored energy in this benchmark.
+    discharge_limit = np.minimum(config.max_discharge_mw, np.maximum(net, 0))
+    bounds = np.column_stack([np.zeros(n_vars), np.zeros(n_vars)])
+    bounds[c_idx, 1] = charge_limit
+    bounds[d_idx, 1] = discharge_limit
+    bounds[e_idx, 0] = min_energy
+    bounds[e_idx, 1] = max_energy
+    bounds[p_idx, 1] = np.inf
+    if terminal_soc_pct is not None:
+        bounds[e_idx[-1], 0] = config.capacity_mwh * terminal_soc_pct / 100
 
-    bounds = (
-        [(0.0, config.max_charge_mw)] * n
-        + [(0.0, config.max_discharge_mw)] * n
-        + [(min_energy, max_energy)] * n
-        + [(None, None)]
-    )
+    def solve(objective: np.ndarray):
+        result = linprog(
+            objective,
+            A_ub=a_ub,
+            b_ub=-net,
+            A_eq=a_eq,
+            b_eq=eq_rhs,
+            bounds=bounds,
+            method="highs",
+            options={"time_limit": 20.0},
+        )
+        if not result.success:
+            raise RuntimeError(f"Peak-shaving LP failed to solve: {result.message}")
+        return result
 
-    result = linprog(
-        cost,
-        A_ub=a_ub,
-        b_ub=b_ub,
-        A_eq=a_eq,
-        b_eq=eq_rhs,
-        bounds=bounds,
-        method="highs",
-    )
-    if not result.success:
-        raise RuntimeError(f"Peak-shaving LP failed to solve: {result.message}")
+    result = solve(cost)
+    optimum_peak = float(result.x[p_idx])
+    peak_tolerance = max(1e-7, abs(optimum_peak) * 1e-9)
+    if cycling_penalty > 0:
+        bounds[p_idx, 1] = optimum_peak + peak_tolerance
+        throughput = np.zeros(n_vars)
+        throughput[: 2 * n] = timestep_hours
+        result = solve(throughput)
 
-    x = result.x
-    charge = np.clip(x[c_idx], 0, None)
-    discharge = np.clip(x[d_idx], 0, None)
-    soc = 100 * x[e_idx] / config.capacity_mwh
-
+    charge = np.clip(result.x[c_idx], 0, None)
+    discharge = np.clip(result.x[d_idx], 0, None)
     out = frame.copy()
     out["lp_charge_mw"] = charge
     out["lp_discharge_mw"] = discharge
-    out["lp_soc_pct"] = soc
+    out["lp_soc_pct"] = 100 * result.x[e_idx] / config.capacity_mwh
     out["lp_optimal_net_load_mw"] = net + charge - discharge
-    out.attrs["lp_peak_mw"] = float(max(0.0, x[p_idx]))
+    out.attrs.update(
+        {
+            "lp_peak_mw": float(max(0.0, out["lp_optimal_net_load_mw"].max())),
+            "lp_optimum_peak_mw": optimum_peak,
+            "lp_peak_tolerance_mw": peak_tolerance,
+            "allow_grid_charging": allow_grid_charging,
+            "terminal_soc_pct": terminal_soc_pct,
+        }
+    )
     return out

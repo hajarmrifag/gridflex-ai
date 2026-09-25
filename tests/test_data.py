@@ -8,11 +8,12 @@ DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 
 
 def test_load_opsd_sample_has_required_columns():
-    frame = load_timeseries(DATA_DIR / "opsd_germany_sample.csv")
+    frame = load_timeseries(DATA_DIR / "opsd_germany_sample.csv", gap_policy="interpolate")
     assert {"demand_mw", "solar_mw", "wind_mw", "renewable_mw"}.issubset(frame.columns)
     assert isinstance(frame.index, pd.DatetimeIndex)
     assert len(frame) > 0
     assert (frame["demand_mw"] > 0).all()
+    assert len(frame.attrs["imputed_timestamps"]) == 24
 
 
 def test_load_morocco_sample_has_required_columns():
