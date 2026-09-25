@@ -5,10 +5,23 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from .validation import finite_columns, finite_scalar
+
 
 def calculate_metrics(frame: pd.DataFrame, timestep_hours: float = 1.0) -> dict[str, float]:
     """Calculate interpretable power-system outcomes from a simulation."""
 
+    finite_scalar(timestep_hours, "timestep_hours", strict=True)
+    finite_columns(
+        frame,
+        [
+            "original_demand_mw",
+            "renewable_mw",
+            "optimized_net_load_mw",
+            "battery_discharge_mw",
+            "battery_charge_mw",
+        ],
+    )
     baseline = frame["original_demand_mw"] - frame["renewable_mw"]
     optimized = frame["optimized_net_load_mw"]
     baseline_curtailment = (-baseline.clip(upper=0)).sum() * timestep_hours
@@ -21,13 +34,11 @@ def calculate_metrics(frame: pd.DataFrame, timestep_hours: float = 1.0) -> dict[
 
     baseline_peak = float(baseline.clip(lower=0).max())
     optimized_peak = float(optimized.clip(lower=0).max())
-    baseline_volatility = float(baseline.diff().dropna().std())
-    optimized_volatility = float(optimized.diff().dropna().std())
+    baseline_volatility = float(baseline.diff().dropna().std()) if len(frame) > 2 else 0.0
+    optimized_volatility = float(optimized.diff().dropna().std()) if len(frame) > 2 else 0.0
 
     return {
-        "renewable_utilization_pct": 100
-        * (renewable_energy - optimized_curtailment)
-        / renewable_energy
+        "renewable_utilization_pct": 100 * (renewable_energy - optimized_curtailment) / renewable_energy
         if renewable_energy
         else 0.0,
         "peak_reduction_pct": 100 * (baseline_peak - optimized_peak) / baseline_peak
@@ -45,9 +56,7 @@ def calculate_metrics(frame: pd.DataFrame, timestep_hours: float = 1.0) -> dict[
         else 0.0,
         "baseline_ramp_volatility_mw": baseline_volatility,
         "optimized_ramp_volatility_mw": optimized_volatility,
-        "volatility_reduction_pct": 100
-        * (baseline_volatility - optimized_volatility)
-        / baseline_volatility
+        "volatility_reduction_pct": 100 * (baseline_volatility - optimized_volatility) / baseline_volatility
         if baseline_volatility
         else 0.0,
     }

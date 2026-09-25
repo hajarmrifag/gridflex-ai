@@ -1,21 +1,22 @@
-"""GridFlex AI interactive scenario laboratory."""
+"""GridFlex interactive scenario laboratory."""
 
 
+import json
+from dataclasses import asdict
 from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from src.battery import BatteryConfig, simulate_battery
-from src.data import generate_demo_data, load_timeseries, scale_renewables
-from src.flexibility import shift_flexible_demand
+from src.battery import BatteryConfig
+from src.data import generate_demo_data, load_timeseries
 from src.forecasting import forecast_demand
-from src.metrics import calculate_metrics
 from src.optimizer import optimize_battery
+from src.scenarios import ScenarioConfig, compare_scenarios, run_scenario
 
 st.set_page_config(
-    page_title="GridFlex AI",
+    page_title="GridFlex",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -50,18 +51,37 @@ st.markdown(
 MOROCCO_SAMPLE_PATH = Path(__file__).resolve().parent / "data" / "morocco_tetouan_sample.csv"
 
 
-@st.cache_data
+@st.cache_data(max_entries=32, show_spinner=False)
 def get_data(source: str, days: int) -> pd.DataFrame:
     if source == "Public OPSD sample (Germany)":
-        return load_timeseries().iloc[: days * 24]
+        return load_timeseries(gap_policy="interpolate").iloc[: days * 24]
     if source == "Morocco (Tétouan, real demand + weather)":
         return load_timeseries(MOROCCO_SAMPLE_PATH).iloc[: days * 24]
     return generate_demo_data(days=days)
 
 
-@st.cache_data
-def get_lp_benchmark(frame: pd.DataFrame, config: BatteryConfig) -> pd.DataFrame:
-    return optimize_battery(frame, config)
+@st.cache_data(max_entries=32, show_spinner=False)
+def get_lp_benchmark(
+    frame: pd.DataFrame, config: BatteryConfig, allow_grid_charging: bool, terminal_soc_pct: float | None
+) -> pd.DataFrame:
+    return optimize_battery(frame, config, allow_grid_charging=allow_grid_charging,
+                            terminal_soc_pct=terminal_soc_pct)
+
+
+@st.cache_data(max_entries=16, show_spinner=False)
+def get_forecast(demand: pd.DataFrame):
+    return forecast_demand(demand)
+
+
+@st.cache_data(max_entries=32, show_spinner=False)
+def get_scenario(raw: pd.DataFrame, config: ScenarioConfig):
+    return run_scenario(raw, config)
+
+
+@st.cache_data(max_entries=8, show_spinner=False)
+def get_comparison(raw: pd.DataFrame, penetration: float, power_pct: float, efficiency: float, quantile: float):
+    return compare_scenarios(raw, penetration, power_pct, round_trip_efficiency=efficiency,
+                             peak_quantile=quantile)
 
 
 def chart_layout(title: str, y_title: str = "MW") -> dict:
@@ -105,33 +125,46 @@ with st.sidebar:
     days = st.select_slider("Analysis horizon", options=[7, 14, 30, 60], value=30)
     penetration = st.slider("Renewable penetration", 20, 140, 75, 5, format="%d%%")
     st.markdown("### Battery")
-    capacity = st.select_slider("Energy capacity (MWh)", [25, 50, 100, 150, 200, 300], value=100)
-    power = st.slider("Charge / discharge limit (MW)", 5, 100, 35, 5)
+    sizing = st.radio("Battery sizing", ["Relative to system", "Absolute MW / MWh"])
+    if sizing == "Relative to system":
+        power_pct = st.slider("Power (% of mean demand)", 1, 50, 10)
+        duration = st.select_slider("Storage duration (hours)", [1, 2, 4, 6, 8, 12], value=4)
+    else:
+        capacity = st.select_slider("Energy capacity (MWh)", [25, 50, 100, 150, 200, 300], value=100)
+        power = st.slider("Charge / discharge limit (MW)", 5, 100, 35, 5)
     efficiency = st.slider("Round-trip efficiency", 70, 98, 90, 1, format="%d%%")
     st.markdown("### Flexible demand")
     flexibility = st.slider("Shiftable daily demand", 0, 20, 8, 1, format="%d%%")
     peak_quantile = st.slider("Peak-shaving threshold", 50, 95, 72, 1, format="%dth percentile")
     st.caption("All scenario changes are simulated locally. No black-box optimizer is hiding the assumptions.")
 
-raw = get_data(source, days)
-scaled = scale_renewables(raw, penetration)
-flexed = shift_flexible_demand(scaled, flexibility)
-positive_net = flexed["net_load_mw"].clip(lower=0)
-peak_target = float(positive_net.quantile(peak_quantile / 100))
+try:
+    raw = get_data(source, days)
+except (OSError, ValueError) as exc:
+    st.error(f"Could not load the selected profile: {exc}")
+    st.stop()
+if sizing == "Relative to system":
+    power = float(raw["demand_mw"].mean() * power_pct / 100)
+    capacity = power * duration
+st.sidebar.caption(f"Battery: {power:,.1f} MW / {capacity:,.1f} MWh")
 config = BatteryConfig(
-    capacity_mwh=capacity,
-    max_charge_mw=power,
-    max_discharge_mw=power,
+    capacity_mwh=capacity, max_charge_mw=power, max_discharge_mw=power,
     round_trip_efficiency=efficiency / 100,
 )
-simulated = simulate_battery(flexed, config, peak_target_mw=peak_target)
-metrics = calculate_metrics(simulated)
+scenario = ScenarioConfig(penetration, flexibility, peak_quantile / 100, config)
+simulated, metrics = get_scenario(raw, scenario)
+peak_target = simulated.attrs["peak_target_mw"]
+flexed = simulated[["demand_mw", "renewable_mw", "net_load_mw"]]
 baseline_net = simulated["original_demand_mw"] - simulated["renewable_mw"]
 
 st.caption(
     f"{source}  ·  {len(simulated):,} hourly observations  ·  "
     f"{simulated.index.min():%d %b %Y} → {simulated.index.max():%d %b %Y}"
 )
+imputed = set(raw.attrs.get("imputed_timestamps", []))
+imputed_count = sum(stamp in imputed for stamp in raw.index.astype(str))
+if imputed_count:
+    st.warning(f"{imputed_count} missing hourly observations were time-interpolated. These are estimates, not measurements.")
 if source == "Morocco (Tétouan, real demand + weather)":
     st.caption(
         "Demand is real (Amendis SCADA, Tétouan, 2017, CC BY 4.0 via UCI ML Repository). "
@@ -139,11 +172,13 @@ if source == "Morocco (Tétouan, real demand + weather)":
         "at the same substations, not measured generation; see Methodology."
     )
 
-tabs = st.tabs(
-    ["System impact", "Dispatch detail", "Forecast lab", "Optimizer benchmark", "Methodology"]
+view = st.radio(
+    "Explore the scenario",
+    ["System impact", "Dispatch detail", "Scenario lab", "Forecast lab", "Optimizer benchmark", "Methodology"],
+    horizontal=True, label_visibility="collapsed", key="view",
 )
 
-with tabs[0]:
+if view == "System impact":
     c1, c2, c3, c4 = st.columns(4)
     c1.metric(
         "Peak demand",
@@ -185,22 +220,20 @@ with tabs[0]:
         energy.update_layout(**chart_layout("Demand and renewable production"))
         st.plotly_chart(energy, use_container_width=True)
     with right:
-        before_curt = metrics["baseline_curtailment_mwh"]
-        after_curt = metrics["curtailed_renewable_mwh"]
-        comparison = go.Figure(go.Bar(
-            x=["Peak import (MW)", "Curtailment (MWh)", "Ramp volatility (MW)"],
-            y=[metrics["baseline_peak_mw"], before_curt, metrics["baseline_ramp_volatility_mw"]],
-            name="Before", marker_color="#52645e",
-        ))
-        comparison.add_bar(
-            x=["Peak import (MW)", "Curtailment (MWh)", "Ramp volatility (MW)"],
-            y=[metrics["optimized_peak_mw"], after_curt, metrics["optimized_ramp_volatility_mw"]],
-            name="After", marker_color="#65e3a2",
-        )
-        comparison.update_layout(**chart_layout("Before vs after", "Scenario units"), barmode="group")
-        st.plotly_chart(comparison, use_container_width=True)
+        st.markdown("### Impact at a glance")
+        st.dataframe(pd.DataFrame({
+            "Measure": ["Peak import (MW)", "Curtailment (MWh)", "Ramp volatility (MW)"],
+            "Before": [metrics["baseline_peak_mw"], metrics["baseline_curtailment_mwh"],
+                       metrics["baseline_ramp_volatility_mw"]],
+            "After": [metrics["optimized_peak_mw"], metrics["curtailed_renewable_mwh"],
+                      metrics["optimized_ramp_volatility_mw"]],
+        }).round(2), hide_index=True, use_container_width=True)
+        st.caption("Power, energy and volatility use different units; compare each row independently.")
+        st.download_button("Download scenario settings", json.dumps({
+            "source": source, "days": days, **asdict(scenario), "metrics": metrics,
+        }, indent=2), "gridflex_scenario.json", "application/json")
 
-with tabs[1]:
+if view == "Dispatch detail":
     st.markdown("### What the controller is doing")
     st.write("The battery charges only from renewable surplus and discharges only above the selected peak target. Flexible demand is shifted within each day, so total daily energy is conserved.")
     dispatch = go.Figure()
@@ -223,15 +256,45 @@ with tabs[1]:
         st.dataframe(simulated.round(2), use_container_width=True)
         st.download_button("Download scenario CSV", simulated.to_csv().encode(), "gridflex_scenario.csv", "text/csv")
 
-with tabs[2]:
+if view == "Scenario lab":
+    st.markdown("### Find the useful storage size")
+    st.write("Compare 20 combinations of storage duration and demand flexibility on the same profile. "
+             "Battery power is sized against mean demand so the comparison works at city and national scale.")
+    comparison_power = st.slider("Comparison power (% of mean demand)", 1, 50, 10)
+    with st.spinner("Comparing storage and flexibility scenarios…"):
+        comparison = get_comparison(raw, penetration, comparison_power, efficiency / 100, peak_quantile / 100)
+    measure = st.selectbox("Compare by", ["peak_reduction_pct", "renewable_utilization_pct", "curtailment_avoided_mwh"],
+                           format_func=lambda x: {"peak_reduction_pct": "Peak reduction (%)",
+                           "renewable_utilization_pct": "Renewable utilisation (%)",
+                           "curtailment_avoided_mwh": "Curtailment avoided (MWh)"}[x])
+    matrix = comparison.pivot(index="flexibility_pct", columns="duration_h", values=measure)
+    heatmap = go.Figure(go.Heatmap(
+        x=[f"{v:g} h" for v in matrix.columns], y=[f"{v:g}%" for v in matrix.index],
+        z=matrix.to_numpy(), colorscale="Greens", text=matrix.round(1).to_numpy(),
+        texttemplate="%{text}", hovertemplate="Storage: %{x}<br>Flexibility: %{y}<br>Value: %{z:.2f}<extra></extra>",
+    ))
+    heatmap.update_layout(**chart_layout("Storage × demand flexibility", "Flexible demand"),
+                          xaxis_title="Storage duration")
+    st.plotly_chart(heatmap, use_container_width=True)
+    st.caption("0 h is an exact no-storage baseline. A higher flexible share can create new peaks; "
+               "these results describe the heuristic, not guaranteed savings or investment returns.")
+    st.dataframe(comparison.round(3), hide_index=True, use_container_width=True)
+    st.download_button("Download comparison CSV", comparison.to_csv(index=False),
+                       "gridflex_comparison.csv", "text/csv")
+
+if view == "Forecast lab":
     st.markdown("### Day-ahead demand benchmark")
     st.write("A chronological holdout test compares gradient boosting with a simple 24-hour persistence forecast. Forecasting is kept separate from dispatch so model quality is not confused with flexibility outcomes.")
     try:
-        predictions, forecast_metrics = forecast_demand(scaled)
+        with st.spinner("Training the chronological benchmark…"):
+            predictions, forecast_metrics = get_forecast(raw[["demand_mw"]])
         f1, f2, f3 = st.columns(3)
         f1.metric("Model MAE", f"{forecast_metrics['model_mae_mw']:.2f} MW")
         f2.metric("Naive MAE", f"{forecast_metrics['naive_mae_mw']:.2f} MW")
-        f3.metric("Improvement", f"{forecast_metrics['improvement_vs_naive_pct']:.1f}%")
+        improvement = forecast_metrics["improvement_vs_naive_pct"]
+        f3.metric("Improvement", f"{improvement:.1f}%" if improvement is not None else "N/A")
+        if improvement is None:
+            st.caption("The persistence baseline has zero error, so percentage improvement is undefined.")
         forecast_fig = go.Figure()
         forecast_fig.add_trace(go.Scatter(x=predictions.index, y=predictions["actual_mw"], name="Actual", line={"color": "#f5f7f6"}))
         forecast_fig.add_trace(go.Scatter(x=predictions.index, y=predictions["forecast_mw"], name="Forecast", line={"color": "#65e3a2"}))
@@ -240,7 +303,7 @@ with tabs[2]:
     except ValueError as exc:
         st.info(f"Select a longer analysis horizon to run the forecast benchmark: {exc}")
 
-with tabs[3]:
+if view == "Optimizer benchmark":
     st.markdown("### How close is the heuristic to the theoretical best?")
     st.write(
         "The dispatch tabs above use a causal rule: charge on surplus, discharge above a "
@@ -254,9 +317,20 @@ with tabs[3]:
         "the comparison below isolates what the battery itself contributes, on top of "
         "flexibility, rather than crediting the battery for flexibility's share of the gain."
     )
+    allow_grid = st.checkbox("Allow charging from the grid", value=False)
+    restore_soc = st.checkbox("Restore initial charge by the end of the horizon", value=False)
+    st.caption("Default: surplus-only charging, matching the heuristic. Restoring charge adds a stricter "
+               "terminal constraint that the heuristic does not enforce; the capture ratio is hidden in that mode.")
     run_lp = st.checkbox("Solve the perfect-foresight benchmark", value=True)
     if run_lp:
-        lp_result = get_lp_benchmark(flexed, config)
+        try:
+            with st.spinner("Solving peak import, then minimum cycling…"):
+                lp_result = get_lp_benchmark(
+                    flexed, config, allow_grid, config.initial_soc_pct if restore_soc else None
+                )
+        except RuntimeError as exc:
+            st.warning(f"This benchmark could not be solved. The selected terminal charge may be infeasible. {exc}")
+            st.stop()
         lp_peak = lp_result.attrs["lp_peak_mw"]
         baseline_peak = float(baseline_net.clip(lower=0).max())
         no_battery_peak = float(flexed["net_load_mw"].clip(lower=0).max())
@@ -277,7 +351,7 @@ with tabs[3]:
                 "almost unchanged. Try the synthetic stress test or a larger battery to "
                 "see the gap widen."
             )
-        else:
+        elif not restore_soc:
             captured_pct = 100 * (no_battery_peak - heuristic_peak) / battery_achievable
             st.metric(
                 "Heuristic captures",
@@ -295,7 +369,7 @@ with tabs[3]:
     else:
         st.caption("Enable the checkbox to solve the benchmark for the current scenario.")
 
-with tabs[4]:
+if view == "Methodology":
     st.markdown("### Transparent by design")
     a, b = st.columns(2)
     with a:
@@ -312,8 +386,9 @@ with tabs[4]:
         st.markdown("""
         **What this prototype does not claim**
 
-        - The dispatch controller is causal: no wholesale-market bidding or
-          foresight. The optimizer benchmark tab *does* use full-horizon
+        - Battery decisions use the current state and a fixed threshold. The
+          threshold and daily demand shifting use the selected historical profile,
+          so the complete experiment is retrospective. The optimizer benchmark tab *does* use full-horizon
           foresight, but only to measure an upper bound, never as a claim
           about what a real controller could execute in operation.
         - No transmission constraints, ancillary services, or degradation cost.
@@ -325,4 +400,3 @@ with tabs[4]:
         - Results show scenario sensitivity, not an investment recommendation.
         """)
     st.info("Core design principle: every headline metric can be traced back to an hourly power balance.")
-

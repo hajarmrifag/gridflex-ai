@@ -1,0 +1,58 @@
+{
+  "baseline_ref": "63efed2",
+  "repeats": 7,
+  "python": "3.14.7",
+  "platform": "macOS-26.5-arm64-arm-64bit-Mach-O",
+  "numpy": "2.5.3",
+  "pandas": "2.3.3",
+  "results": [
+    {
+      "operation": "demand_shifting",
+      "days": 30,
+      "baseline_ms": 35.42,
+      "optimized_ms": 0.945,
+      "speedup": 37.48,
+      "max_absolute_difference": 0.0
+    },
+    {
+      "operation": "scenario_pipeline",
+      "days": 30,
+      "baseline_ms": 36.137,
+      "optimized_ms": 1.439,
+      "speedup": 25.11,
+      "max_absolute_difference": 0.0
+    },
+    {
+      "operation": "demand_shifting",
+      "days": 60,
+      "baseline_ms": 70.982,
+      "optimized_ms": 1.498,
+      "speedup": 47.38,
+      "max_absolute_difference": 0.0
+    },
+    {
+      "operation": "scenario_pipeline",
+      "days": 60,
+      "baseline_ms": 71.731,
+      "optimized_ms": 2.246,
+      "speedup": 31.94,
+      "max_absolute_difference": 0.0
+    },
+    {
+      "operation": "demand_shifting",
+      "days": 365,
+      "baseline_ms": 435.306,
+      "optimized_ms": 6.915,
+      "speedup": 62.96,
+      "max_absolute_difference": 0.0
+    },
+    {
+      "operation": "scenario_pipeline",
+      "days": 365,
+      "baseline_ms": 445.389,
+      "optimized_ms": 10.139,
+      "speedup": 43.93,
+      "max_absolute_difference": 0.0
+    }
+  ]
+}

@@ -55,3 +55,18 @@ three distribution zones, alongside co-located weather measurements
 This is one city, not a model of Morocco's national grid. See the
 [Responsible interpretation](../README.md#responsible-interpretation) section
 and [`docs/methodology.md`](../docs/methodology.md) for the full caveats.
+
+## Hourly continuity in the German sample
+
+The bundled German CSV contains 1,440 observations but omits all 24 hours of
+2015-02-28. Treating rows as consecutive hours would make SOC transitions and
+24/168-hour forecast lags incorrect across that gap.
+
+`load_timeseries()` now rejects irregular timestamps by default. Application and
+experiment loaders explicitly request `gap_policy="interpolate"`, which
+reindexes to the complete hourly interval, performs time interpolation, and
+records the filled timestamps in DataFrame attributes. The raw CSV is unchanged.
+The workspace/API disclose the number of interpolated hours within the selected
+horizon (24 in the 60-day German case; none in the 30-day case). Forecast fitting
+and evaluation exclude interpolated targets and any row whose lag uses them.
+These filled values are estimates, not recovered measurements.

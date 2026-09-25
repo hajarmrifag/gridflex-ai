@@ -1,11 +1,12 @@
 """Demand-side flexibility algorithms."""
 
+import numpy as np
 import pandas as pd
 
+from .validation import finite_columns, regular_index
 
-def shift_flexible_demand(
-    frame: pd.DataFrame, flexibility_pct: float, window: str = "D"
-) -> pd.DataFrame:
+
+def shift_flexible_demand(frame: pd.DataFrame, flexibility_pct: float, window: str = "D") -> pd.DataFrame:
     """Shift a share of demand from high to low residual-load hours.
 
     Energy is conserved inside each window. The algorithm moves the flexible
@@ -15,42 +16,36 @@ def shift_flexible_demand(
 
     if not 0 <= flexibility_pct <= 100:
         raise ValueError("flexibility_pct must be between 0 and 100")
-    needed = {"demand_mw", "renewable_mw"}
-    if not needed.issubset(frame.columns):
-        raise ValueError(f"frame must contain {sorted(needed)}")
-    if not isinstance(frame.index, pd.DatetimeIndex):
-        raise TypeError("frame index must be a DatetimeIndex")
+    values = finite_columns(frame, ["demand_mw", "renewable_mw"], nonnegative=True)
+    regular_index(frame)
 
     result = frame.copy()
-    result["original_demand_mw"] = result["demand_mw"].astype(float)
-    result["demand_shift_mw"] = 0.0
+    demand, renewable = values.T
+    shift = np.zeros(len(frame))
+    result["original_demand_mw"] = demand
     fraction = flexibility_pct / 100
 
-    if fraction == 0:
-        result["net_load_mw"] = result["demand_mw"] - result["renewable_mw"]
-        return result
-
-    groups = result.groupby(pd.Grouper(freq=window))
-    for _, group in groups:
-        if len(group) < 4:
+    groups = frame.groupby(pd.Grouper(freq=window)).indices if fraction else {}
+    residual = demand - renewable
+    for positions in groups.values():
+        if len(positions) < 4:
             continue
-        residual = group["demand_mw"] - group["renewable_mw"]
-        low_cut, high_cut = residual.quantile([0.25, 0.75])
-        donor_idx = group.index[residual >= high_cut]
-        receiver_idx = group.index[residual <= low_cut]
-        if donor_idx.empty or receiver_idx.empty:
+        positions = np.asarray(positions)
+        local = residual[positions]
+        low_cut, high_cut = np.quantile(local, [0.25, 0.75])
+        # A flat profile has no high/low distinction; overlapping sets can
+        # otherwise manufacture peaks by moving demand back into donor hours.
+        if low_cut == high_cut:
             continue
+        donors = positions[local >= high_cut]
+        receivers = positions[local <= low_cut]
+        removed = demand[donors] * fraction
+        shift[donors] -= removed
+        receiver_residual = residual[receivers]
+        attractiveness = receiver_residual.max() - receiver_residual + 1.0
+        shift[receivers] += removed.sum() * attractiveness / attractiveness.sum()
 
-        removed = result.loc[donor_idx, "demand_mw"] * fraction
-        shifted_energy = float(removed.sum())
-        result.loc[donor_idx, "demand_mw"] -= removed
-        result.loc[donor_idx, "demand_shift_mw"] -= removed
-
-        receiver_residual = residual.loc[receiver_idx]
-        attractiveness = (receiver_residual.max() - receiver_residual + 1.0).clip(lower=1.0)
-        allocation = shifted_energy * attractiveness / attractiveness.sum()
-        result.loc[receiver_idx, "demand_mw"] += allocation
-        result.loc[receiver_idx, "demand_shift_mw"] += allocation
-
-    result["net_load_mw"] = result["demand_mw"] - result["renewable_mw"]
+    result["demand_shift_mw"] = shift
+    result["demand_mw"] = demand + shift
+    result["net_load_mw"] = demand + shift - renewable
     return result

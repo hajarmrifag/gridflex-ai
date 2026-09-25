@@ -7,3 +7,14 @@ __pycache__/
 data/time_series_60min_singleindex.csv
 results/*.csv
 results/*.html
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+*.egg-info/
+benchmarks/latest.json
+
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
