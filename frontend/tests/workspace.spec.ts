@@ -7,12 +7,17 @@ test("runs a scenario, saves a snapshot, and restores it after reload", async ({
   await expect(
     page.getByText("Simulation ready", { exact: true }),
   ).toBeVisible();
+  await page.getByRole("slider", { name: /Storage duration/ }).press("End");
+  await page.getByRole("button", { name: "Run scenario", exact: true }).click();
+  await expect(
+    page.getByText("Simulation ready", { exact: true }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Save current scenario", exact: true })
     .click();
   await expect(
     page.getByRole("button", {
-      name: "Tétouan, Morocco · 4h / 10% flex",
+      name: "Tétouan, Morocco · 12h / 10% flex",
       exact: true,
     }),
   ).toBeVisible();
@@ -24,7 +29,7 @@ test("runs a scenario, saves a snapshot, and restores it after reload", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: "Run scenario", exact: true }).click();
   await expect(
-    page.getByText("Synthetic system", { exact: true }).first(),
+    page.getByRole("main").getByText("Synthetic system", { exact: false }),
   ).toBeVisible();
   await expect(
     page.getByText("Simulation ready", { exact: true }),
@@ -32,13 +37,13 @@ test("runs a scenario, saves a snapshot, and restores it after reload", async ({
   await page.reload();
   await page
     .getByRole("button", {
-      name: "Tétouan, Morocco · 4h / 10% flex",
+      name: "Tétouan, Morocco · 12h / 10% flex",
       exact: true,
     })
     .click();
   await expect(
     page.getByRole("slider", { name: /Storage duration/ }),
-  ).toHaveValue("4");
+  ).toHaveValue("12");
 });
 
 test("applies a heatmap result and replays its dispatch", async ({ page }) => {
