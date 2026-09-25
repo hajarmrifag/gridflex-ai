@@ -9,7 +9,7 @@
 
 GridFlex combines a React/TypeScript workspace, a bounded FastAPI simulation API, and an independently testable scientific engine. Explore real public profiles, replay every hour of battery dispatch, compare storage configurations, and see exactly where a simple controller falls short of perfect foresight.
 
-![GridFlex workspace](docs/img/workspace.jpg)
+![GridFlex workspace](docs/img/workspace.png)
 
 [Open GridFlex](https://gridflex.onrender.com/) · [Methodology](docs/methodology.md) · [Architecture](docs/architecture.md) · [Performance](benchmarks/README.md) · [Data provenance](data/README.md) · [Deployment](docs/deployment.md)
 
