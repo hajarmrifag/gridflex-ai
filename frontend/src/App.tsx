@@ -19,7 +19,7 @@ import {
   Share2,
   Shield,
   SlidersHorizontal,
-  Sparkles,
+  ChartNoAxesCombined,
   Trash2,
   X,
   Zap,
@@ -39,7 +39,7 @@ const navigation = [
   { id: "overview", name: "Overview", icon: LayoutDashboard },
   { id: "dispatch", name: "Dispatch replay", icon: Activity },
   { id: "scenarios", name: "Scenario lab", icon: FlaskConical },
-  { id: "forecast", name: "Forecasting", icon: Sparkles },
+  { id: "forecast", name: "Forecasting", icon: ChartNoAxesCombined },
   { id: "stress", name: "Stress test", icon: Shield },
   { id: "optimizer", name: "Optimizer", icon: Gauge },
 ] as const;
@@ -262,7 +262,7 @@ export default function App() {
         <div className="saved-list">
           {snapshots.length === 0 ? (
             <p className="empty-saved">
-              Your next discovery starts here.
+              No saved scenarios.
               <br />
               Save a run to compare it later.
             </p>
@@ -310,11 +310,11 @@ export default function App() {
         <div className="sidebar-bottom">
           <div className="research-note">
             <BookOpen size={20} />
-            <strong>Built on evidence.</strong>
+            <strong>Model assumptions</strong>
             <p>
-              Real profiles. Explicit physics.
+              Data sources and physical constraints.
               <br />
-              Assumptions you can inspect.
+              Review the equations and limitations.
             </p>
             <button onClick={() => navigate("methodology")}>
               Read the methodology <ArrowRight size={14} />
@@ -388,13 +388,13 @@ export default function App() {
                 <h1>
                   {
                     {
-                      overview: "Energy, in balance.",
-                      dispatch: "Watch the grid breathe.",
-                      scenarios: "Find your sweet spot.",
-                      forecast: "Look one day ahead.",
-                      stress: "Put resilience to the test.",
-                      optimizer: "Explore the upper bound.",
-                      methodology: "Trust, by design.",
+                      overview: "System overview",
+                      dispatch: "Hourly dispatch",
+                      scenarios: "Compare scenarios",
+                      forecast: "Demand forecasting",
+                      stress: "System stress test",
+                      optimizer: "Dispatch optimization",
+                      methodology: "Methodology",
                     }[view]
                   }
                 </h1>
@@ -402,18 +402,19 @@ export default function App() {
                   {
                     {
                       overview:
-                        "Turn renewable potential into a more flexible power system.",
+                        "Measure the effect of storage and flexible demand on your selected profile.",
                       dispatch:
-                        "Every hour. Every charge. Every megawatt accounted for.",
+                        "Inspect hourly generation, demand, battery flows and grid import.",
                       scenarios:
-                        "More storage isn’t always the answer. Find what actually moves the needle.",
+                        "Compare storage duration and demand flexibility across 20 configurations.",
                       forecast:
                         "A chronological benchmark. No future observations in training.",
                       stress:
-                        "When demand spikes and renewables fall, what happens next?",
+                        "Measure the effect of higher evening demand and lower renewable output.",
                       optimizer:
-                        "Compare today’s heuristic with perfect-foresight peak minimization.",
-                      methodology: "A transparent model is a useful model.",
+                        "Compare rule-based dispatch with a perfect-foresight optimization benchmark.",
+                      methodology:
+                        "Data sources, equations, assumptions and limits.",
                     }[view]
                   }
                 </p>

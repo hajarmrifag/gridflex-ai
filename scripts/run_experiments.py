@@ -1,4 +1,4 @@
-"""Systematic GridFlex experiments answering the three README research questions.
+"""Systematic GridFlex storage, demand flexibility and profile experiments.
 
 Batteries are sized relative to each system's mean demand so that Tétouan
 (~tens of MW) and Germany (~tens of GW) are comparable:
@@ -24,11 +24,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from src.battery import BatteryConfig, simulate_battery
+from src.battery import BatteryConfig
 from src.data import load_timeseries, scale_renewables
 from src.flexibility import shift_flexible_demand
-from src.metrics import calculate_metrics
 from src.optimizer import optimize_battery
+from src.scenarios import ScenarioConfig, run_scenario
 
 DAYS = 60
 PEAK_QUANTILE = 0.72
@@ -40,18 +40,15 @@ SYSTEMS = {
 
 
 def run(raw, penetration, power_pct, duration_h, flex_pct):
-    scaled = scale_renewables(raw, penetration)
-    flexed = shift_flexible_demand(scaled, flex_pct)
     power = raw["demand_mw"].mean() * power_pct / 100
-    config = BatteryConfig(
-        capacity_mwh=max(power * duration_h, 1e-6),
-        max_charge_mw=power,
-        max_discharge_mw=power,
+    battery = BatteryConfig(
+        capacity_mwh=power * duration_h if duration_h else 1,
+        max_charge_mw=power if duration_h else 0,
+        max_discharge_mw=power if duration_h else 0,
         round_trip_efficiency=EFFICIENCY,
     )
-    target = float(flexed["net_load_mw"].clip(lower=0).quantile(PEAK_QUANTILE))
-    sim = simulate_battery(flexed, config, peak_target_mw=target)
-    return calculate_metrics(sim)
+    _, metrics = run_scenario(raw, ScenarioConfig(penetration, flex_pct, PEAK_QUANTILE, battery))
+    return metrics
 
 
 def main() -> None:
@@ -61,19 +58,19 @@ def main() -> None:
     # RQ1: battery energy capacity at fixed power (10% of mean demand), 75% renewables.
     for name, raw in data.items():
         for hours in (0, 1, 2, 4, 8, 12):
-            m = run(raw, 75, 10, hours, 0) if hours else run(raw, 75, 0.0001, 0.0001, 0)
+            m = run(raw, 75, 10, hours, 0)
             rows.append({"rq": 1, "system": name, "duration_h": hours, **m})
     # RQ2: flexibility vs storage duration (75% renewables, 10% power).
     for name, raw in data.items():
         for flex in (0, 5, 10, 15, 20):
             for hours in (0, 2, 4, 8):
-                m = run(raw, 75, 10, hours, flex) if hours else run(raw, 75, 0.0001, 0.0001, flex)
+                m = run(raw, 75, 10, hours, flex)
                 rows.append({"rq": 2, "system": name, "flex_pct": flex, "duration_h": hours, **m})
     # RQ3: penetration sweep with fixed storage (4 h, 10%) and 10% flexibility, plus no-flex-no-storage.
     for name, raw in data.items():
         for pen in (25, 50, 75, 100, 125):
             for label, (hrs, flex) in {"none": (0, 0), "storage+flex": (4, 10)}.items():
-                m = run(raw, pen, 10, hrs, flex) if hrs else run(raw, pen, 0.0001, 0.0001, flex)
+                m = run(raw, pen, 10, hrs, flex)
                 rows.append({"rq": 3, "system": name, "penetration": pen, "scenario": label, **m})
 
     # Benchmark: causal heuristic vs perfect-foresight LP peak reduction (75% renewables, 0% flex).
@@ -85,7 +82,7 @@ def main() -> None:
             power = raw["demand_mw"].mean() * 0.10
             cfg = BatteryConfig(capacity_mwh=power * hours, max_charge_mw=power,
                                 max_discharge_mw=power, round_trip_efficiency=EFFICIENCY)
-            lp_peak = optimize_battery(flexed, cfg).attrs["lp_peak_mw"]
+            lp_peak = optimize_battery(flexed, cfg, allow_grid_charging=False).attrs["lp_peak_mw"]
             rows.append({"rq": 4, "system": name, "duration_h": hours,
                          "lp_peak_reduction_pct": 100 * (base_peak - lp_peak) / base_peak,
                          "heuristic_peak_reduction_pct": run(raw, 75, 10, hours, 0)["peak_reduction_pct"]})

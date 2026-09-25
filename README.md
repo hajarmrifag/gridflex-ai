@@ -1,11 +1,11 @@
-# GridFlex AI
+# GridFlex
 
 [![CI](https://github.com/hajarmrifag/gridflex-ai/actions/workflows/test.yml/badge.svg)](https://github.com/hajarmrifag/gridflex-ai/actions/workflows/test.yml)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![React](https://img.shields.io/badge/React-19-61dafb)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-**An interactive energy-systems laboratory for finding the useful intersection of renewables, storage, and flexible demand.**
+**Simulate renewable generation, battery storage and flexible electricity demand.**
 
 GridFlex combines a React/TypeScript workspace, a bounded FastAPI simulation API, and an independently testable scientific engine. Explore real public profiles, replay every hour of battery dispatch, compare storage configurations, and see exactly where a simple controller falls short of perfect foresight.
 
@@ -121,4 +121,4 @@ python scripts/run_experiments.py
 python scripts/benchmark.py --baseline-ref 63efed2 --repeats 7
 ```
 
-Earlier README research tables and plots were produced before the missing-day and optimizer-objective corrections. Rerun experiments before comparing current results with those historical figures; the new benchmark record concerns computational performance only.
+The research figures and [recorded experiment results](docs/experiments.csv) use the current engine, an exact no-storage baseline and surplus-only charging for both dispatch policies. See [experiment setup](docs/experiments.md) for assumptions. Computational timing results are recorded separately in `benchmarks/`.

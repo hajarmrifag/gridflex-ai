@@ -20,7 +20,25 @@ docker run --rm -p 127.0.0.1:8000:8000 gridflex
 
 The multi-stage image builds with Node 24, runs on Python 3.12, excludes development dependencies, and runs the API as UID 10001 rather than root. It has a health check against `/api/health`. The runtime needs no persistent writable data volume and no provider credentials. `.dockerignore` excludes local environments, browser test artifacts and Git history.
 
-The container specification is checked into the repository; building it still requires Docker. Do not interpret a passing Python/frontend build as a container build result.
+Python runtime dependencies are pinned with hashes in `requirements-api.lock`; frontend dependencies are pinned in `frontend/package-lock.json`. CI builds the image and checks its health endpoint, frontend and a simulation request.
+
+To refresh the Python lockfile, install `uv` in your development environment and run:
+
+```bash
+uv pip compile pyproject.toml --extra api --python-version 3.11 --universal --generate-hashes --output-file requirements-api.lock --no-header
+```
+
+Review the diff and run the full checks before committing a dependency update.
+
+## Render
+
+The repository includes a [Render Blueprint](https://render.com/docs/blueprint-spec), `render.yaml`, for one Docker web service on the free plan. It sets port 8000, an HTTP health check and deployment after CI checks pass.
+
+In your Render workspace, create a Blueprint from `hajarmrifag/gridflex-ai`, select `main`, and apply `render.yaml`. The linked GitHub integration must already have repository access for automatic deployments. No database, API keys or persistent disk are required.
+
+The free plan can sleep when idle and is suitable for a public demonstration. Account resource limits still apply. Use a sized, continuously running service for workloads requiring availability guarantees.
+
+After deployment, verify `/api/health`, load the workspace and run a scenario. The service URL appears in the Render dashboard. For rollback, redeploy a previously tested commit from Render's deploy history; no database migration is involved.
 
 ## Hosting
 

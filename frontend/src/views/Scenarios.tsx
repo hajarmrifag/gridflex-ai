@@ -42,7 +42,7 @@ export default function Scenarios({
       {result.data && (
         <>
           <Panel
-            title="20 ways to balance your system"
+            title="Storage and flexibility comparison"
             eyebrow="STORAGE × FLEXIBILITY"
             action={
               <select

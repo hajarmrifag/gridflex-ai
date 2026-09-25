@@ -8,10 +8,12 @@ RUN npm run build
 FROM python:3.12-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 WORKDIR /app
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md requirements-api.lock ./
 COPY src ./src
 COPY api ./api
-RUN pip install --no-cache-dir ".[api]" && useradd --create-home --uid 10001 gridflex
+RUN pip install --no-cache-dir --require-hashes -r requirements-api.lock \
+    && pip install --no-cache-dir --no-deps . \
+    && useradd --create-home --uid 10001 gridflex
 COPY data ./data
 COPY --from=frontend /build/frontend/dist ./frontend/dist
 USER gridflex

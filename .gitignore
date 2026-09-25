@@ -15,3 +15,6 @@ frontend/playwright-report/
 benchmarks/latest.json
 
 *.tsbuildinfo
+.env
+.env.*
+!.env.example

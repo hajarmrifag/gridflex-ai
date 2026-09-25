@@ -1,4 +1,4 @@
-"""GridFlex AI interactive scenario laboratory."""
+"""GridFlex interactive scenario laboratory."""
 
 
 import json
@@ -16,7 +16,7 @@ from src.optimizer import optimize_battery
 from src.scenarios import ScenarioConfig, compare_scenarios, run_scenario
 
 st.set_page_config(
-    page_title="GridFlex AI",
+    page_title="GridFlex",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",

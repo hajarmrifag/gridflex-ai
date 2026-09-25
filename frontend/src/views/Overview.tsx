@@ -84,7 +84,7 @@ export default function Overview({
         />
       </div>
       <Panel
-        title="A smoother path to renewable power."
+        title="Residual grid load"
         eyebrow="GRID-FACING RESIDUAL LOAD"
         className="dark-panel"
         action={
@@ -160,7 +160,7 @@ export default function Overview({
             UTC
           </div>
         </Panel>
-        <Panel title="Every megawatt-hour matters" eyebrow="RENEWABLE RECOVERY">
+        <Panel title="Renewable energy use" eyebrow="RENEWABLE RECOVERY">
           <div className="recovery-value">
             {format(recovery)}
             <span>%</span>
