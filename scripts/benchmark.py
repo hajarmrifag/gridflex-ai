@@ -7,14 +7,17 @@ No network or changes to the baseline checkout are needed.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib
 import json
 import platform
+import random
 import statistics
 import subprocess
 import sys
 import tempfile
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -28,24 +31,36 @@ from src.data import generate_demo_data, scale_renewables
 from src.flexibility import shift_flexible_demand
 
 
-def median_ms(function, repeats):
-    function()
-    elapsed = []
+def paired_timings(old, new, repeats, rng):
+    """Warm both variants, then randomize order within each measurement pair."""
+    for _ in range(2):
+        old()
+        new()
+    samples = {"baseline": [], "optimized": []}
+    orders = []
     for _ in range(repeats):
-        start = time.perf_counter()
-        function()
-        elapsed.append((time.perf_counter() - start) * 1000)
-    return statistics.median(elapsed)
+        pair = [("baseline", old), ("optimized", new)]
+        rng.shuffle(pair)
+        orders.append([name for name, _ in pair])
+        for name, function in pair:
+            start = time.perf_counter_ns()
+            function()
+            samples[name].append((time.perf_counter_ns() - start) / 1e6)
+    return samples, orders
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--baseline-ref", default="63efed2")
     parser.add_argument("--repeats", type=int, default=7)
+    parser.add_argument("--output", type=Path, default=ROOT / "benchmarks" / "latest.json")
+    parser.add_argument("--order-seed", type=int, default=42)
+    parser.add_argument("--cpu-label", default=platform.processor() or "not recorded")
     args = parser.parse_args()
     if args.repeats < 1:
         parser.error("--repeats must be positive")
     results = []
+    rng = random.Random(args.order_seed)
     with tempfile.TemporaryDirectory() as temp:
         package = Path(temp) / "gridflex_baseline"
         package.mkdir()
@@ -73,10 +88,23 @@ def main():
             for name, (old, new) in pairs.items():
                 before, after = old(), new()
                 np.testing.assert_allclose(before.to_numpy(), after.to_numpy(), rtol=1e-10, atol=1e-8)
-                baseline_ms, optimized_ms = median_ms(old, args.repeats), median_ms(new, args.repeats)
+                samples, order = paired_timings(old, new, args.repeats, rng)
+                baseline_ms = statistics.median(samples["baseline"])
+                optimized_ms = statistics.median(samples["optimized"])
                 results.append(
                     {
                         "operation": name,
+                        "rows": len(frame),
+                        "raw_samples_ms": samples,
+                        "pair_order": order,
+                        "dispersion_ms": {
+                            variant: {
+                                "min": min(values),
+                                "max": max(values),
+                                "sample_stdev": statistics.stdev(values) if len(values) > 1 else None,
+                            }
+                            for variant, values in samples.items()
+                        },
                         "days": days,
                         "baseline_ms": round(baseline_ms, 3),
                         "optimized_ms": round(optimized_ms, 3),
@@ -87,7 +115,25 @@ def main():
                     }
                 )
     report = {
-        "baseline_ref": args.baseline_ref,
+        "recorded_at_utc": datetime.now(UTC).isoformat(),
+        "baseline_ref": subprocess.check_output(
+            ["git", "rev-parse", args.baseline_ref], cwd=ROOT, text=True
+        ).strip(),
+        "checkout_head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "working_tree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT)),
+        "source_sha256": {
+            str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in [
+                ROOT / "scripts/benchmark.py",
+                ROOT / "src/data.py",
+                ROOT / "src/flexibility.py",
+                ROOT / "src/battery.py",
+            ]
+        },
+        "cpu": args.cpu_label,
+        "warmup_runs_per_variant": 2,
+        "order_seed": args.order_seed,
+        "method": "randomized paired order; median of raw samples; not service latency",
         "repeats": args.repeats,
         "python": platform.python_version(),
         "platform": platform.platform(),
@@ -95,7 +141,7 @@ def main():
         "pandas": pd.__version__,
         "results": results,
     }
-    target = ROOT / "benchmarks" / "latest.json"
+    target = args.output
     target.parent.mkdir(exist_ok=True)
     target.write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))
