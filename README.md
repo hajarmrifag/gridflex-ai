@@ -13,6 +13,10 @@ GridFlex combines a React/TypeScript workspace, a bounded FastAPI simulation API
 
 [Open GridFlex](https://gridflex.onrender.com/) · [Methodology](docs/methodology.md) · [Architecture](docs/architecture.md) · [Performance](benchmarks/README.md) · [Data provenance](data/README.md) · [Deployment](docs/deployment.md)
 
+## Engineering review in two minutes
+
+Start with [architecture and resource bounds](docs/architecture.md), [numerical invariants](tests/test_validation.py), and [benchmark method/raw evidence](benchmarks/README.md). The 31.9x headline is the recorded 60-day shift-and-battery engine comparison, not end-to-end application latency. Demand shifting removes repeated pandas indexing; the battery loop was already array-based. Tests, workload limits and retrospective/perfect-foresight assumptions are part of the result.
+
 ## The workspace
 
 | View | What you can do |

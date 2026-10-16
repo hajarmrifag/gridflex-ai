@@ -1,0 +1,449 @@
+{
+  "recorded_at_utc": "2026-10-16T02:44:59.769784+00:00",
+  "baseline_ref": "63efed2bc1e7970ad5b0f9a21becdb4ffe6f35eb",
+  "checkout_head": "83d98f50be1e60af17fb306b603a58f8066405f8",
+  "working_tree_dirty": true,
+  "source_sha256": {
+    "scripts/benchmark.py": "21f08e6e1581291e7a409eca40321a0fbc83f6ca095a88aba566e809e1d81bdc",
+    "src/data.py": "4ea92c0c2296f80e6565eb0ce5331a418174404790fe4e5d4ece38285e24f91b",
+    "src/flexibility.py": "e4defa8a0e06a6dd38eceffe93fe91d1703a9d60dd5b0f3a12e34cba6ae7c1c6",
+    "src/battery.py": "5dbd6216e2acea3080970bb714f1204f37965b32b3fe323a1d6cd7af2054bfa8"
+  },
+  "cpu": "Apple M5",
+  "warmup_runs_per_variant": 2,
+  "order_seed": 42,
+  "method": "randomized paired order; median of raw samples; not service latency",
+  "repeats": 7,
+  "python": "3.12.14",
+  "platform": "macOS-26.5-arm64-arm-64bit",
+  "numpy": "2.5.3",
+  "pandas": "2.3.3",
+  "results": [
+    {
+      "operation": "demand_shifting",
+      "rows": 720,
+      "raw_samples_ms": {
+        "baseline": [
+          62.292875,
+          131.310625,
+          145.183292,
+          105.67275,
+          92.224917,
+          107.6135,
+          62.991542
+        ],
+        "optimized": [
+          1.993625,
+          2.114,
+          3.818333,
+          3.373667,
+          2.989792,
+          3.105542,
+          2.273459
+        ]
+      },
+      "pair_order": [
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ]
+      ],
+      "dispersion_ms": {
+        "baseline": {
+          "min": 62.292875,
+          "max": 145.183292,
+          "sample_stdev": 31.50752494417033
+        },
+        "optimized": {
+          "min": 1.993625,
+          "max": 3.818333,
+          "sample_stdev": 0.6943685609458424
+        }
+      },
+      "days": 30,
+      "baseline_ms": 105.673,
+      "optimized_ms": 2.99,
+      "speedup": 35.34,
+      "max_absolute_difference": 0.0
+    },
+    {
+      "operation": "scenario_pipeline",
+      "rows": 720,
+      "raw_samples_ms": {
+        "baseline": [
+          57.553083,
+          56.683208,
+          57.210917,
+          55.743166,
+          55.508458,
+          53.87275,
+          55.394125
+        ],
+        "optimized": [
+          2.622375,
+          2.535584,
+          2.266792,
+          2.624,
+          2.335041,
+          2.716833,
+          2.501083
+        ]
+      },
+      "pair_order": [
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ]
+      ],
+      "dispersion_ms": {
+        "baseline": {
+          "min": 53.87275,
+          "max": 57.553083,
+          "sample_stdev": 1.2612722594718921
+        },
+        "optimized": {
+          "min": 2.266792,
+          "max": 2.716833,
+          "sample_stdev": 0.16266286157951998
+        }
+      },
+      "days": 30,
+      "baseline_ms": 55.743,
+      "optimized_ms": 2.536,
+      "speedup": 21.98,
+      "max_absolute_difference": 0.0
+    },
+    {
+      "operation": "demand_shifting",
+      "rows": 1440,
+      "raw_samples_ms": {
+        "baseline": [
+          106.210083,
+          105.32825,
+          106.769125,
+          105.269417,
+          100.622334,
+          101.603458,
+          99.166959
+        ],
+        "optimized": [
+          2.354333,
+          2.574875,
+          2.581833,
+          2.469833,
+          2.628042,
+          2.5895,
+          2.392833
+        ]
+      },
+      "pair_order": [
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ]
+      ],
+      "dispersion_ms": {
+        "baseline": {
+          "min": 99.166959,
+          "max": 106.769125,
+          "sample_stdev": 3.031133815585671
+        },
+        "optimized": {
+          "min": 2.354333,
+          "max": 2.628042,
+          "sample_stdev": 0.10734066881329615
+        }
+      },
+      "days": 60,
+      "baseline_ms": 105.269,
+      "optimized_ms": 2.575,
+      "speedup": 40.88,
+      "max_absolute_difference": 0.0
+    },
+    {
+      "operation": "scenario_pipeline",
+      "rows": 1440,
+      "raw_samples_ms": {
+        "baseline": [
+          101.983,
+          101.572083,
+          101.910042,
+          102.225167,
+          105.606375,
+          101.870458,
+          103.498542
+        ],
+        "optimized": [
+          3.243083,
+          3.610208,
+          3.414083,
+          3.366375,
+          3.528458,
+          3.740458,
+          3.578417
+        ]
+      },
+      "pair_order": [
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ]
+      ],
+      "dispersion_ms": {
+        "baseline": {
+          "min": 101.572083,
+          "max": 105.606375,
+          "sample_stdev": 1.4376349855295232
+        },
+        "optimized": {
+          "min": 3.243083,
+          "max": 3.740458,
+          "sample_stdev": 0.16739052434238633
+        }
+      },
+      "days": 60,
+      "baseline_ms": 101.983,
+      "optimized_ms": 3.528,
+      "speedup": 28.9,
+      "max_absolute_difference": 0.0
+    },
+    {
+      "operation": "demand_shifting",
+      "rows": 8760,
+      "raw_samples_ms": {
+        "baseline": [
+          674.83175,
+          659.699875,
+          643.368416,
+          633.060625,
+          674.58925,
+          634.7785,
+          662.351916
+        ],
+        "optimized": [
+          10.683959,
+          10.046791,
+          11.023792,
+          10.343709,
+          30.958167,
+          10.725167,
+          10.478084
+        ]
+      },
+      "pair_order": [
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ]
+      ],
+      "dispersion_ms": {
+        "baseline": {
+          "min": 633.060625,
+          "max": 674.83175,
+          "sample_stdev": 17.691555458600746
+        },
+        "optimized": {
+          "min": 10.046791,
+          "max": 30.958167,
+          "sample_stdev": 7.719666837067495
+        }
+      },
+      "days": 365,
+      "baseline_ms": 659.7,
+      "optimized_ms": 10.684,
+      "speedup": 61.75,
+      "max_absolute_difference": 0.0
+    },
+    {
+      "operation": "scenario_pipeline",
+      "rows": 8760,
+      "raw_samples_ms": {
+        "baseline": [
+          1159.585042,
+          724.3245,
+          672.721125,
+          1010.739375,
+          660.477958,
+          676.093625,
+          635.431125
+        ],
+        "optimized": [
+          21.112333,
+          20.957125,
+          19.795375,
+          16.056,
+          15.521375,
+          19.443709,
+          14.898125
+        ]
+      },
+      "pair_order": [
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ],
+        [
+          "optimized",
+          "baseline"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ],
+        [
+          "baseline",
+          "optimized"
+        ]
+      ],
+      "dispersion_ms": {
+        "baseline": {
+          "min": 635.431125,
+          "max": 1159.585042,
+          "sample_stdev": 206.96867304731373
+        },
+        "optimized": {
+          "min": 14.898125,
+          "max": 21.112333,
+          "sample_stdev": 2.671720166576858
+        }
+      },
+      "days": 365,
+      "baseline_ms": 676.094,
+      "optimized_ms": 19.444,
+      "speedup": 34.77,
+      "max_absolute_difference": 0.0
+    }
+  ]
+}
