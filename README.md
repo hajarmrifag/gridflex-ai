@@ -1,128 +1,50 @@
 # GridFlex
 
-[![CI](https://github.com/hajarmrifag/gridflex-ai/actions/workflows/test.yml/badge.svg)](https://github.com/hajarmrifag/gridflex-ai/actions/workflows/test.yml)
-![Python](https://img.shields.io/badge/python-3.11%2B-blue)
-![React](https://img.shields.io/badge/React-19-61dafb)
-![License](https://img.shields.io/badge/license-MIT-green)
+**Explore what batteries and flexible demand change, hour by hour.**
 
-**Simulate renewable generation, battery storage and flexible electricity demand.**
+A React/TypeScript workspace around a FastAPI simulation API and a testable NumPy/SciPy engine. Compare scenarios, replay dispatch and inspect the physical constraints behind each chart.
 
-GridFlex combines a React/TypeScript workspace, a bounded FastAPI simulation API, and an independently testable scientific engine. Explore real public profiles, replay every hour of battery dispatch, compare storage configurations, and see exactly where a simple controller falls short of perfect foresight.
+**[Open the application](https://gridflex.onrender.com/)** · [Case study](https://hajarmrifag.github.io/work/gridflex.html) · [Architecture](docs/architecture.md) · [Benchmark evidence](benchmarks/README.md)
 
-![GridFlex workspace](docs/img/workspace.png)
+![GridFlex's actual workspace, with scenario controls, energy metrics and an interactive residual-load chart.](docs/img/workspace.png)
 
-[Open GridFlex](https://gridflex.onrender.com/) · [Methodology](docs/methodology.md) · [Architecture](docs/architecture.md) · [Performance](benchmarks/README.md) · [Data provenance](data/README.md) · [Deployment](docs/deployment.md)
+## A usable interface over a bounded engine
 
-## Engineering review in two minutes
+**Six views, one model:** overview, hourly dispatch replay, scenario lab, chronological forecasting, stress testing and optimization. Save six scenarios locally, export results or share a configuration. The workspace includes keyboard navigation, mobile controls and reduced-motion support.
 
-Start with [architecture and resource bounds](docs/architecture.md), [numerical invariants](tests/test_validation.py), and [benchmark method/raw evidence](benchmarks/README.md). The 31.9x headline is the recorded 60-day shift-and-battery engine comparison, not end-to-end application latency. Demand shifting removes repeated pandas indexing; the battery loop was already array-based. Tests, workload limits and retrospective/perfect-foresight assumptions are part of the result.
+**31.9× in the recorded engine workload:** removing repeated pandas indexing in demand shifting reduced the 60-day shift + battery pipeline from **71.731 to 2.246 ms**. All compared numeric columns matched in that case. This excludes HTTP, rendering, forecasting and LP solves. [Timings, raw records and protocol changes](benchmarks/README.md).
 
-## The workspace
+**Physical limits are part of the interface:** dispatch respects power, state of charge and efficiency; demand shifting conserves daily energy. The optimizer minimizes peak import before cycling. Missing data and perfect-foresight assumptions are disclosed. [Scientific methodology](docs/methodology.md) · [Data provenance](data/README.md).
 
-| View | What you can do |
-| --- | --- |
-| **Overview** | Inspect peak demand, renewable utilisation, battery delivery and volatility; zoom the residual-load chart to a day, week or full horizon. |
-| **Dispatch replay** | Play, pause, step or scrub through hourly power flows and state of charge. Download the complete dispatch CSV. |
-| **Scenario lab** | Explore 20 combinations of storage duration and demand flexibility in a selectable heatmap; apply a result to the workspace. |
-| **Forecasting** | Compare chronological gradient-boosting predictions with 24-hour persistence, including negative improvements when the baseline wins. |
-| **Stress test** | Increase evening demand and derate renewables while keeping installed generation and the original dispatch target fixed. |
-| **Optimizer** | Minimize peak import with perfect foresight, then minimize cycling; choose surplus-only/grid charging and an optional terminal-charge requirement. |
+## Run it
 
-Save up to six scenario snapshots **on the current device**, compare and restore them, export versioned settings/results as JSON, or copy a link that recreates the same configuration. A keyboard-accessible command palette (`⌘/Ctrl K`), mobile navigation, explicit loading/errors, and reduced-motion support complete the workspace. Shared links require the recipient to have access to the app's address; local URLs are not public deployments.
+Requires **Python 3.11+** and **Node.js 22.12+** (Node 24 recommended). No API key or database is required.
 
-Battery power defaults to a percentage of system mean demand, and duration determines energy capacity. This keeps sizing meaningful for both a city and a national grid. A zero-hour battery is an exact no-storage experiment.
-
-## Run the full application
-
-Requires Python 3.11+ and Node.js 22.12+ (Node 24 recommended).
-
-```bash
+```sh
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[api,dev]"
 npm ci --prefix frontend
-```
-
-Start the API:
-
-```bash
 uvicorn api.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-In a second terminal, start the workspace:
+In another terminal:
 
-```bash
+```sh
 npm run dev --prefix frontend
 ```
 
-Open **http://127.0.0.1:5173**. Vite proxies `/api` to the local backend. The API documentation is at **http://127.0.0.1:8000/api/docs**. No API key, model download, external database or paid service is required. Swagger's documentation UI loads its assets from a CDN; the workspace itself uses local assets only.
+Open **http://127.0.0.1:5173**. [Production build, Docker and original research interface](docs/workspace-guide.md#run-the-full-application).
 
-For a single production server:
+## Inspect the evidence
 
-```bash
-npm run build --prefix frontend
-uvicorn api.main:app --host 127.0.0.1 --port 8000
-```
+| Question | Where to look |
+| --- | --- |
+| How are requests and expensive computations bounded? | [Architecture](docs/architecture.md) and [API](api/) |
+| What prevents physically invalid results? | [Validation tests](tests/test_validation.py) and [methodology](docs/methodology.md) |
+| How was the speedup measured? | [Benchmark protocol](benchmarks/README.md), including raw paired samples |
+| How do I reproduce the research? | [Experiments](docs/experiments.md) and [complete validation commands](docs/workspace-guide.md#validation) |
 
-The API serves the built frontend at `/`. Build before starting the server. See [deployment](docs/deployment.md) for Docker and operational limits.
+Release 0.2.0 records **91 Python tests and five browser journeys**, with browser/container CI. The public API caps horizons at 60 days; the annual benchmark exercises only the engine.
 
-### Original Streamlit research interface
-
-The existing research interface remains available and now computes only the selected view:
-
-```bash
-pip install -e ".[research]"
-streamlit run app.py
-```
-
-The [existing Streamlit deployment](https://gridflex-energy-sim.streamlit.app/) runs the repository's deployed version. It is separate from the new React workspace and does not automatically become the new application when a branch is created.
-
-## Measured engine improvements
-
-A same-process benchmark against `63efed2`, with identical synthetic profiles and seven timed repetitions, measured:
-
-| Horizon | Demand shifting | Shift + battery pipeline |
-| --- | ---: | ---: |
-| 30 days | 37.5× faster | 25.1× faster |
-| 60 days | 47.4× faster | 31.9× faster |
-| 365 days | 63.0× faster | 43.9× faster |
-
-All compared numeric output columns were identical in these cases. These are **CPU kernel measurements on one machine**, not network or whole-application speedup claims. The API/UI accepts horizons up to 60 days; the annual case exercises engine scaling. [Recorded timings, environment and reproduction command](benchmarks/README.md).
-
-The workspace also avoids hidden-view model fitting, caches deterministic computations with bounded entries, compresses API responses, lazy-loads secondary views, and uses SVG charts without shipping Plotly to the browser.
-
-## Scientific guarantees and limits
-
-- Daily demand energy is conserved during shifting; flat residual-load quartiles remain unchanged.
-- Battery dispatch respects power, state-of-charge and efficiency constraints at each interval.
-- The LP first solves peak import, then throughput within an explicit numerical tolerance. Cycling penalties cannot quietly worsen its primary objective.
-- Forecast evaluation is chronological. Imputed target hours and observations whose lags touch imputed hours are excluded.
-- Missing files, non-finite values, duplicate timestamps and irregular sampling fail explicitly. The German sample has a known missing day; application loaders explicitly interpolate those hours and disclose the count when the selected horizon includes them.
-- Tétouan demand is measured; its renewable profiles are estimated from local weather. Germany uses measured historical demand and generation. Synthetic mode is labeled and seeded.
-
-The full experiment is retrospective: the threshold and daily demand shifts use the selected historical profile. The optimizer has perfect foresight. Neither is represented as an operational forecasting/control system. Initial stored energy can be consumed; restore terminal charge in the optimizer when that constraint matters. GridFlex does not model transmission constraints, markets, degradation costs or outage probabilities.
-
-## Validation
-
-```bash
-pytest
-ruff check .
-npm run format:check --prefix frontend
-npm run build --prefix frontend
-# Build first; the browser suite uses the production server.
-cd frontend
-npx playwright install chromium
-npm test
-```
-
-CI runs engine/API tests on Python 3.11 and 3.12, then builds and runs Chromium journeys covering configuration, snapshots, comparison, dispatch replay, all compute labs, exports and mobile navigation. Tests cover numerical conservation, invalid inputs, lexicographic optimality, terminal constraints, cached-input immutability, request limits and forecast edge cases.
-
-Research experiments remain reproducible:
-
-```bash
-pip install -e ".[research]"
-python scripts/run_experiments.py
-python scripts/benchmark.py --baseline-ref 63efed2 --repeats 7
-```
-
-The research figures and [recorded experiment results](docs/experiments.csv) use the current engine, an exact no-storage baseline and surplus-only charging for both dispatch policies. See [experiment setup](docs/experiments.md) for assumptions. Computational timing results are recorded separately in `benchmarks/`.
+**Interpretation:** a retrospective research simulator. The optimizer sees the full horizon; this is not an operational controller. No transmission network, market, battery degradation or outage model is implied. [Full assumptions and limitations](docs/workspace-guide.md#scientific-guarantees-and-limits). The free demo may need time to wake.
