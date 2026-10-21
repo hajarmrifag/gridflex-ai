@@ -25,8 +25,14 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
       - run: pip install --require-hashes -r requirements-api.lock && pip install -e ".[dev,api]"
-      - run: pytest
+      - run: python scripts/run_tests.py -- --strict-markers
       - run: ruff check .
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: python-test-results-${{ matrix.python }}
+          path: reports/
+          retention-days: 7
 
   workspace:
     runs-on: ubuntu-latest
@@ -53,10 +59,12 @@ jobs:
       - run: npm test
         working-directory: frontend
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: browser-test-results
-          path: frontend/test-results
+          path: |
+            frontend/test-results
+            frontend/playwright-report
           retention-days: 7
 
   container:
@@ -71,6 +79,7 @@ jobs:
             if curl --fail --silent http://127.0.0.1:8000/api/health; then break; fi
             sleep 2
           done
+          curl --fail --silent http://127.0.0.1:8000/api/health
           curl --fail --silent http://127.0.0.1:8000/ > /dev/null
           curl --fail --silent -H 'Content-Type: application/json' -d '{"days":7}' http://127.0.0.1:8000/api/simulate > /dev/null
       - run: docker logs gridflex

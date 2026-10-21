@@ -42,6 +42,7 @@ Open **http://127.0.0.1:5173**. [Production build, Docker and original research 
 | --- | --- |
 | How are requests and expensive computations bounded? | [Architecture](docs/architecture.md) and [API](api/) |
 | What prevents physically invalid results? | [Validation tests](tests/test_validation.py) and [methodology](docs/methodology.md) |
+| How are failures reproduced and test results reported? | [Test automation audit and quality gates](docs/test-automation.md) |
 | How was the speedup measured? | [Benchmark protocol](benchmarks/README.md), including raw paired samples |
 | How do I reproduce the research? | [Experiments](docs/experiments.md) and [complete validation commands](docs/workspace-guide.md#validation) |
 

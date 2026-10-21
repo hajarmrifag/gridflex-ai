@@ -9,7 +9,7 @@ For numerical changes, add a regression that checks the underlying invariant: en
 Before opening a pull request, run:
 
 ```bash
-pytest
+python scripts/run_tests.py -- --strict-markers
 ruff check .
 npm run format:check --prefix frontend
 npm run build --prefix frontend
@@ -17,5 +17,7 @@ cd frontend && npm test
 ```
 
 The browser suite requires Chromium (`npx playwright install chromium`). CI also builds and smoke-tests the production container. Describe the behavior change and validation in the pull request. Include screenshots when changing the interface.
+
+See [quality gates and failure reproduction](docs/test-automation.md) for required pass criteria and report locations. CI rejects focused browser tests and flaky passes; run `CI=1 npm test` from `frontend/` against an unused port 8000 to apply the same policy locally.
 
 Do not commit credentials, local environments, build output or private datasets. Preserve the attribution and licensing of bundled public data.
