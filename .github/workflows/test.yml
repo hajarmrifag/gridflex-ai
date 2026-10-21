@@ -27,7 +27,7 @@ jobs:
       - run: pip install --require-hashes -r requirements-api.lock && pip install -e ".[dev,api]"
       - run: python scripts/run_tests.py -- --strict-markers
       - run: ruff check .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: python-test-results-${{ matrix.python }}
@@ -58,7 +58,7 @@ jobs:
         working-directory: frontend
       - run: npm test
         working-directory: frontend
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: browser-test-results
