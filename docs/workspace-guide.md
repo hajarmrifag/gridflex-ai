@@ -92,7 +92,7 @@ The full experiment is retrospective: the threshold and daily demand shifts use 
 ## Validation
 
 ```bash
-pytest
+python scripts/run_tests.py -- --strict-markers
 ruff check .
 npm run format:check --prefix frontend
 npm run build --prefix frontend
@@ -103,6 +103,8 @@ npm test
 ```
 
 CI runs engine/API tests on Python 3.11 and 3.12, then builds and runs Chromium journeys covering configuration, snapshots, comparison, dispatch replay, all compute labs, exports and mobile navigation. Tests cover numerical conservation, invalid inputs, lexicographic optimality, terminal constraints, cached-input immutability, request limits and forecast edge cases.
+
+The [test-automation audit and quality gates](test-automation.md) explain executable BDD failure recovery, browser retry tests and report artifacts. Run only the BDD scenarios with `python scripts/run_tests.py --suite bdd`; the full Python suite includes them. Reports are written to a fresh directory under `reports/` for each invocation.
 
 Research experiments remain reproducible:
 

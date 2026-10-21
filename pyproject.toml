@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3,<10", "ruff>=0.8"]
+dev = ["pytest>=8.3,<10", "pytest-bdd>=9,<10", "ruff>=0.8"]
 api = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "httpx>=0.27,<1"]
 research = ["plotly>=5.24,<7", "streamlit>=1.39,<2", "matplotlib>=3.9,<4"]
 
@@ -26,6 +26,7 @@ include = ["src*", "api*"]
 testpaths = ["tests"]
 addopts = "-q"
 pythonpath = ["."]
+markers = ["bdd: executable behavior scenarios for API failure recovery"]
 
 [tool.ruff]
 line-length = 110

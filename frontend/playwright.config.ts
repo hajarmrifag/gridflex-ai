@@ -4,6 +4,13 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
+  forbidOnly: !!process.env.CI,
+  failOnFlakyTests: !!process.env.CI,
+  reporter: [
+    ["list"],
+    ["html", { open: "never" }],
+    ["junit", { outputFile: "test-results/junit.xml" }],
+  ],
   use: { baseURL: "http://127.0.0.1:8000", trace: "retain-on-failure" },
   webServer: {
     command:

@@ -62,7 +62,7 @@ def test_all_labs_return_finite_serializable_outputs():
         json.dumps(response.json(), allow_nan=False)
 
 
-def test_short_forecast_and_infeasible_optimization_return_clear_errors():
+def test_short_forecast_returns_clear_error():
     response = client.post("/api/forecast", json={"days": 7})
     assert response.status_code == 422
     assert "9 days" in response.json()["detail"]

@@ -13,6 +13,7 @@ frontend/test-results/
 frontend/playwright-report/
 *.egg-info/
 benchmarks/latest.json
+reports/
 
 *.tsbuildinfo
 .env

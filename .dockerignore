@@ -10,3 +10,4 @@ frontend/playwright-report
 *.egg-info
 results
 benchmarks
+reports
