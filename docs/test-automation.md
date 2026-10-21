@@ -1,10 +1,10 @@
 # Test automation audit and quality gates
 
-This audit supports a review of GridFlex as a test-automation portfolio project,
-including for a Siemens Digital Industries Software internship. It is evidence
-of repository work, not Siemens work experience or validation against a Siemens
-product. The audited starting revision was `83d98f5`; the final architecture
-review also incorporated upstream changes through `0dc7414`.
+This document records the test-automation architecture, coverage and verification
+evidence for GridFlex. It describes repository-level work and does not establish
+validation of third-party software or production reliability. The audited
+starting revision was `83d98f5`; the final architecture review also incorporated
+upstream changes through `0dc7414`.
 
 ## Capabilities already present
 
